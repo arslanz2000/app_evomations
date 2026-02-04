@@ -515,12 +515,12 @@ const doctors = ref([
     specialty: "Nutritionist",
     assistantId: "62107efe-3686-4974-80ac-6b61f17fc589",
   },
-  {
-    id: "dr-anne",
-    name: "Dr Anne",
-    specialty: "Psychologist",
-    assistantId: "e4cb63da-8ae6-4f08-8f78-25ad8cc981df",
-  },
+  // {
+  //   id: "dr-anne",
+  //   name: "Dr Anne",
+  //   specialty: "Psychologist",
+  //   assistantId: "e4cb63da-8ae6-4f08-8f78-25ad8cc981df",
+  // },
 ]);
 
 const OPENAI_MODEL = "gpt-4o-mini";

@@ -8,7 +8,7 @@
     <!-- Breadcrumb / page title -->
     <div class="breadcrumbs">
       <i class="fas fa-layer-group" aria-hidden="true"></i>
-      <span>{{ pageTitle }}</span>
+      <span>AI Doctors</span>
     </div>
 
     <div class="spacer"></div>
