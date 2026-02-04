@@ -64,7 +64,7 @@
       </button> -->
 
       <p class="nav-label">Shortcuts</p>
-      <button type="button" class="nav-btn" @click="emit('navigate', 'doctors')">
+      <button type="button" class="nav-btn" @click="navigateToConsultant()">
         <i class="fas fa-stethoscope" aria-hidden="true"></i>
         <span>Start Consultation</span>
       </button>
@@ -88,6 +88,10 @@ import { ref, computed, defineAsyncComponent, watch, onMounted } from 'vue'
 const emit = defineEmits<{
   (e:'navigate', v:'home'|'doctors'|'chatbots'|'xrays'): void
 }>()
+
+const navigateToConsultant = () => {
+    window.location.href = "https://demo.evomations.com/doctor_listing_page/";
+};
 
 const props = defineProps<{
   currentView?: 'home' | 'doctors' | 'chatbots' | 'xrays'
