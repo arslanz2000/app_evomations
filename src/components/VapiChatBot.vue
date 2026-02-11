@@ -65,7 +65,7 @@
     <div class="voice-card">
       <div class="voice-header">
         <div class="voice-info">
-          <h3>Talk to Dr. Sophie</h3>
+          <h3>Talk to Dr. Sophie — General Physician</h3>
           <p>Voice consultation available now</p>
         </div>
         <button class="btn-call" @click="navigateToVoice">
