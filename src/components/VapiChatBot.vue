@@ -1,69 +1,88 @@
 <template>
-  <div class="chat">
-    <header class="chat__bar">
-      <img src="/dr-sophie.png" alt="Dr Sophie" class="doctor-img" />
-      <span style="margin-left:15px;">Dr Sophie — General Physician</span>
-    </header>
+  <div class="chat-container">
+    <div class="chat">
+      <header class="chat__bar">
+        <img src="/dr-sophie.png" alt="Dr Sophie" class="doctor-img" />
+        <span style="margin-left:15px;">Dr Sophie — General Physician</span>
+      </header>
 
-    <main class="chat__body" ref="scrollEl">
-      <div v-for="(m, i) in messages" :key="i" class="msg" :data-role="m.role">
-        <div class="msg__bubble">
-          <div class="msg__role">{{ m.role === 'user' ? 'You' : 'Doctor' }}</div>
+      <main class="chat__body" ref="scrollEl">
+        <div v-for="(m, i) in messages" :key="i" class="msg" :data-role="m.role">
+          <div class="msg__bubble">
+            <div class="msg__role">{{ m.role === 'user' ? 'You' : 'Doctor' }}</div>
 
-          <template v-if="Array.isArray(m.content)">
-            <template v-for="(part, pi) in m.content" :key="pi">
-              <p v-if="part?.type === 'text'" class="msg__text">{{ part.text }}</p>
-              <img v-else-if="part?.type === 'image_url' && part?.image_url?.url" class="msg__img"
-                :src="part.image_url.url" alt="uploaded" />
+            <template v-if="Array.isArray(m.content)">
+              <template v-for="(part, pi) in m.content" :key="pi">
+                <p v-if="part?.type === 'text'" class="msg__text">{{ part.text }}</p>
+                <img v-else-if="part?.type === 'image_url' && part?.image_url?.url" class="msg__img"
+                  :src="part.image_url.url" alt="uploaded" />
+              </template>
             </template>
-          </template>
-          <p v-else class="msg__text">{{ m.content }}</p>
+            <div v-else class="msg__text markdown-body" v-html="renderMarkdown(m.content)"></div>
+          </div>
         </div>
-      </div>
 
-      <div v-if="loading" class="msg" data-role="assistant">
-        <div class="msg__bubble">
-          <div class="dots"><span></span><span></span><span></span></div>
+        <div v-if="loading" class="msg" data-role="assistant">
+          <div class="msg__bubble">
+            <div class="dots"><span></span><span></span><span></span></div>
+          </div>
         </div>
-      </div>
 
-      <p v-if="error" class="error">{{ error }}</p>
-    </main>
+        <p v-if="error" class="error">{{ error }}</p>
+      </main>
 
-    <form class="composer new-composer" @submit.prevent="send">
-      <input
-        v-model="input"
-        :disabled="loading"
-        class="composer-input"
-        placeholder="How can I help you?"
-        autocomplete="off"
-      />
-
-      <div class="composer-actions">
-        <button class="send-btn" :disabled="!canSend || loading" title="Send">
-          <i class="fas fa-arrow-right"></i>
-        </button>
-
-        <button type="button" class="attach-btn" @click="pickAttach">
-          <i class="fas fa-plus"></i>
-        </button>
-
+      <form class="composer new-composer" @submit.prevent="send">
         <input
-          ref="filePicker"
-          type="file"
-          accept="image/*"
-          multiple
-          class="hidden-input"
-          @change="onPickImages"
+          v-model="input"
+          :disabled="loading"
+          class="composer-input"
+          placeholder="How can I help you?"
+          autocomplete="off"
         />
+
+        <div class="composer-actions">
+          <button class="send-btn" :disabled="!canSend || loading" title="Send">
+            <i class="fas fa-arrow-right"></i>
+          </button>
+
+          <button type="button" class="attach-btn" @click="pickAttach">
+            <i class="fas fa-plus"></i>
+          </button>
+
+          <input
+            ref="filePicker"
+            type="file"
+            accept="image/*"
+            multiple
+            class="hidden-input"
+            @change="onPickImages"
+          />
+        </div>
+      </form>
+    </div>
+
+    <!-- VOICE AGENT CARD -->
+    <div class="voice-card">
+      <div class="voice-header">
+        <div class="voice-info">
+          <h3>Talk to Dr. Sophie</h3>
+          <p>Voice consultation available now</p>
+        </div>
+        <button class="btn-call" @click="navigateToVoice">
+          <i class="fas fa-phone-alt"></i> Start Call
+        </button>
       </div>
-    </form>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, nextTick, computed } from 'vue'
+import { marked } from 'marked';
 
+const emit = defineEmits(['navigate'])
+
+// -- CHAT LOGIC --
 const API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
 const API_URL = 'https://api.openai.com/v1/chat/completions'
 const model = 'gpt-4o-mini'
@@ -76,6 +95,11 @@ const SYSTEM_PROMPT = `You are a licensed general physician. Answer as a doctor 
 const messages = ref([
   { role: 'assistant', content: 'Hello—I\'m your virtual general physician. How can I help you today?' }
 ])
+
+function renderMarkdown(text) {
+  if (!text) return '';
+  return marked.parse(String(text));
+}
 const input = ref('')
 const loading = ref(false)
 const error = ref('')
@@ -186,20 +210,144 @@ async function send() {
     await scrollToBottom()
   }
 }
+
+// -- NAVIGATION ONLY --
+function navigateToVoice() {
+    localStorage.setItem("autoStartDoctor", "dr-sophie"); 
+    emit('navigate', 'doctors')
+}
 </script>
 
 <style scoped>
+.chat-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    max-width: 960px;
+    margin: 0 auto;
+    gap: 20px;
+}
+
 .chat {
-  max-width: 960px;
-  margin: 40px auto;
   background: #fff;
   border-radius: 18px;
   overflow: hidden;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
   display: grid;
   grid-template-rows: auto 1fr auto;
-  height: 80vh;
+  height: 65vh; /* Reduced height to make room for voice card */
 }
+
+/* Voice Card Styles */
+.voice-card {
+    background: linear-gradient(135deg, #1a73e8, #0048a8);
+    border-radius: 16px;
+    padding: 16px 24px;
+    color: white;
+    box-shadow: 0 8px 20px rgba(26, 115, 232, 0.25);
+    transition: all 0.3s ease;
+}
+
+.voice-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.voice-info h3 { margin: 0; font-size: 1.1rem; }
+.voice-info p { margin: 4px 0 0; font-size: 0.9rem; opacity: 0.9; }
+
+.btn-call {
+    background: white;
+    color: #1a73e8;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 99px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: transform 0.2s;
+}
+.btn-call:hover { transform: scale(1.05); }
+
+.voice-active {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.active-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.timer {
+    font-family: monospace;
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.status-badge {
+    background: rgba(255,255,255,0.2);
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+}
+
+.active-controls {
+    display: flex;
+    gap: 12px;
+}
+
+.ctrl-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255,255,255,0.2);
+    color: white;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    font-size: 1.1rem;
+    transition: background 0.2s;
+}
+.ctrl-btn:hover { background: rgba(255,255,255,0.3); }
+.ctrl-btn.active { background: white; color: #1a73e8; }
+.end-btn { background: #fee2e2; color: #ef4444; }
+.end-btn:hover { background: #fecaca; }
+
+/* Pulsing animation for active call */
+.pulsing-blob {
+	width: 12px;
+	height: 12px;
+	border-radius: 50%;
+	background: #4ade80;
+	box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7);
+	animation: pulse-green 2s infinite;
+}
+
+@keyframes pulse-green {
+	0% {
+		transform: scale(0.95);
+		box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7);
+	}
+
+	70% {
+		transform: scale(1);
+		box-shadow: 0 0 0 10px rgba(74, 222, 128, 0);
+	}
+
+	100% {
+		transform: scale(0.95);
+		box-shadow: 0 0 0 0 rgba(74, 222, 128, 0);
+	}
+}
+
+/* Existing Chat Styles... keeping them mostly as is but ensuring responsiveness */
 
 .chat__bar {
   background: linear-gradient(135deg, #1a73e8, #0048a8);
@@ -468,5 +616,35 @@ async function send() {
 
 .hidden-input {
   display: none;
+}
+
+/* MARKDOWN STYLES */
+.markdown-body {
+  line-height: 1.5;
+}
+.markdown-body :deep(strong) {
+  font-weight: 700;
+  color: inherit;
+}
+.markdown-body :deep(ul), 
+.markdown-body :deep(ol) {
+  margin: 4px 0 8px 20px;
+  padding: 0;
+}
+.markdown-body :deep(li) {
+  margin-bottom: 4px;
+}
+.markdown-body :deep(p) {
+  margin-bottom: 8px;
+}
+.markdown-body :deep(p:last-child) {
+  margin-bottom: 0;
+}
+.markdown-body :deep(h1), 
+.markdown-body :deep(h2), 
+.markdown-body :deep(h3) {
+  font-size: 1.1em;
+  font-weight: 700;
+  margin: 12px 0 6px;
 }
 </style>

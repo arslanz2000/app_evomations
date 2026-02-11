@@ -794,9 +794,6 @@ const startCall = async (doctor) => {
     await vapi.start(doctor.assistantId, {
       clientMessages: [
         "transcript",
-        "conversation-update",
-        "status-update",
-        "speech-update",
       ],
     });
 
@@ -1373,19 +1370,6 @@ onMounted(() => {
         }
       }
     }
-    const autoStartDoctor = localStorage.getItem('autoStartDoctor')
-  if (autoStartDoctor) {
-    // Find the doctor
-    const doctor = doctors.value.find(d => d.id === autoStartDoctor)
-    if (doctor) {
-      // Small delay to ensure component is fully mounted
-      setTimeout(() => {
-        startCall(doctor)
-      }, 1000)
-    }
-    // Clear the flag
-    localStorage.removeItem('autoStartDoctor')
-  }
   });
 
   vapi.on("call-end", () => {
@@ -1399,6 +1383,27 @@ onMounted(() => {
   setTimeout(() => (status.value = ""), 5000);
 
   fetchLatestSummary();
+
+  // Check for auto-start intent from ChatBot
+  const autoStartDoctorId = localStorage.getItem("autoStartDoctor");
+  if (autoStartDoctorId) {
+    console.log("Found pending call for doctor ID:", autoStartDoctorId);
+    localStorage.removeItem("autoStartDoctor");
+
+    // Find doctor by ID
+    const targetDoctor = doctors.value.find(d => d.id === autoStartDoctorId);
+
+    if (targetDoctor) {
+      console.log("Auto-starting call with:", targetDoctor.name);
+      // Ensure Vapi is ready before starting the call
+      // The `canSendControls.value` becoming true indicates Vapi is ready to interact.
+      // We can wait for it or rely on the existing `flushControls` logic if `startCall` is called early.
+      // For now, we'll just call `startCall` directly, assuming Vapi will handle queuing if not ready.
+      startCall(targetDoctor);
+    } else {
+      console.warn("Could not find doctor with ID:", autoStartDoctorId);
+    }
+  }
 });
 
 

@@ -119,7 +119,7 @@
         <section v-else-if="currentView === 'chatbots'" class="doctors">
           <Suspense>
             <template #default>
-              <VapiChatBot />
+              <VapiChatBot @navigate="setView" />
             </template>
             <template #fallback>
               <div class="loading-card">
