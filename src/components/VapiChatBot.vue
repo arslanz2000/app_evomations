@@ -223,7 +223,7 @@ function navigateToVoice() {
     display: flex;
     flex-direction: column;
     height: 100%;
-    max-width: 960px;
+    max-width: 1150px;
     margin: 0 auto;
     gap: 20px;
 }
@@ -646,5 +646,57 @@ function navigateToVoice() {
   font-size: 1.1em;
   font-weight: 700;
   margin: 12px 0 6px;
+}
+
+/* MOBILE ADJUSTMENTS */
+@media (max-width: 768px) {
+  .chat-container {
+    gap: 12px;
+  }
+  .chat {
+    height: 70vh;
+  }
+  .msg__bubble {
+    max-width: 85%;
+  }
+  .voice-header {
+    flex-direction: column;
+    gap: 16px;
+    text-align: center;
+  }
+  .btn-call {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .chat__bar {
+    padding: 14px 18px;
+    font-size: 1.1rem;
+  }
+  .chat__bar img {
+    width: 32px;
+    height: 32px;
+  }
+  .chat__body {
+    padding: 16px;
+  }
+  .new-composer {
+    margin: 12px 10px;
+    padding: 12px;
+  }
+  .composer-input {
+    font-size: 1rem;
+  }
+  .send-btn, .attach-btn {
+    width: 44px;
+    height: 44px;
+  }
+  .msg__bubble {
+    font-size: 1rem;
+    padding: 12px 16px;
+    max-width: 92%;
+  }
 }
 </style>

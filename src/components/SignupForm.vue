@@ -206,4 +206,15 @@ const registerWithGoogle = () => {
   height: 20px;
 }
 
+
+@media (max-width: 480px) {
+  .auth-form {
+    padding: 1.5rem;
+    margin: 16px;
+    box-shadow: none;
+  }
+  .auth-form h2 {
+    font-size: 1.4rem;
+  }
+}
 </style>

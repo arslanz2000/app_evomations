@@ -9,7 +9,9 @@
       :open="sidebarOpen"
       :count-doctors="countDoctors"
       @navigate="setView"
+      @toggleSidebar="sidebarOpen = !sidebarOpen"
     />
+
 
     <!-- Main -->
     <div class="main">
@@ -182,6 +184,14 @@
         <i class="fas fa-user-md"></i>
       </button>
     </div>
+
+    <!-- Mobile Overlay (only visible when sidebar is open on mobile) -->
+    <div
+      v-if="sidebarOpen"
+      class="mobile-sidebar-overlay"
+      @click="sidebarOpen = false"
+      aria-hidden="true"
+    ></div>
   </div>
 </template>
 
@@ -208,6 +218,11 @@ const currentView = ref(localStorage.getItem("currentView") || "signup");
 function setView(view) {
   currentView.value = view;
   localStorage.setItem("currentView", view);
+
+  // ✅ Auto-close sidebar on mobile after navigation
+  if (window.innerWidth <= 720) {
+    sidebarOpen.value = false;
+  }
 }
 
 const countDoctors  = 20
@@ -245,6 +260,11 @@ onMounted(() => {
 
   if (token) {
     currentView.value = "doctors";
+  }
+
+  // ✅ Surgically initialize sidebar state for mobile
+  if (window.innerWidth <= 720) {
+    sidebarOpen.value = false;
   }
 });
 
@@ -656,27 +676,6 @@ html.dark .panel {
     transform: translateX(0); 
   }
   
-  /* Overlay when sidebar is open */
-  .app-shell::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 999;
-    opacity: 0;
-    visibility: hidden;
-    transition: all 0.3s ease;
-    backdrop-filter: blur(2px);
-  }
-  
-  .app-shell:has(:deep(.sidebar.open))::before {
-    opacity: 1;
-    visibility: visible;
-  }
-  
   /* Show FAB on mobile */
   .fab { 
     display: grid; 
@@ -777,5 +776,28 @@ html.dark .panel {
 .stats {
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 20px;
+}
+
+/* Mobile Overlay (Surgical Fix) - Global scope */
+.mobile-sidebar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 999;
+  backdrop-filter: blur(2px);
+  transition: opacity 0.3s ease;
+}
+
+@media (min-width: 721px) {
+  .mobile-sidebar-overlay {
+    display: none !important;
+  }
+}
+
+.app-shell::before {
+  display: none !important;
 }
 </style>

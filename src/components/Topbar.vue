@@ -1,8 +1,8 @@
 <template>
   <header class="topbar">
-    <!-- Sidebar toggle -->
-    <button class="icon-btn" @click="$emit('toggleSidebar')" aria-label="Toggle sidebar">
-      <i class="fas" :class="sidebarOpen ? 'fa-times' : 'fa-bars'"></i>
+    <!-- Sidebar toggle (only shows when sidebar is closed) -->
+    <button v-if="!sidebarOpen" class="icon-btn" @click="$emit('toggleSidebar')" aria-label="Open sidebar">
+      <i class="fas fa-bars"></i>
     </button>
 
     <!-- Breadcrumb / page title -->
@@ -166,5 +166,26 @@ function logout() {
   padding: 4px 8px;
   margin-left: 6px;
   border-radius: 8px;
+}
+
+@media (max-width: 600px) {
+  .topbar {
+    padding: 8px 12px;
+  }
+  .breadcrumbs, .top-actions button span, .top-actions button i + span {
+    display: none;
+  }
+  /* If buttons are icons + text, hiding text */
+  .top-actions button {
+    padding: 8px 10px;
+    font-size: 0; /* Hide text if no span */
+  }
+  .top-actions button i {
+    font-size: 1.1rem;
+    margin: 0;
+  }
+  .user-chip span {
+    display: none;
+  }
 }
 </style>

@@ -1,11 +1,14 @@
 <template>
-  <aside class="sidebar" :class="{ open: !open }" :aria-expanded="String(open)">
+  <aside class="sidebar" :class="{ open: open }" :aria-expanded="String(open)">
     <div class="brand">
       <div class="brand-mark"><i class="fas fa-user-md" aria-hidden="true" /></div>
       <div class="brand-text">
         <h1>AI Doctors</h1>
         <span>AI Health Suite</span>
       </div>
+      <button class="sidebar-toggle" @click="emit('toggleSidebar')" aria-label="Close sidebar">
+        <i class="fas fa-times"></i>
+      </button>
     </div>
 
     <nav class="nav" aria-label="Primary">
@@ -86,7 +89,8 @@
 <script setup lang="ts">
 import { ref, computed, defineAsyncComponent, watch, onMounted } from 'vue'
 const emit = defineEmits<{
-  (e:'navigate', v:'home'|'doctors'|'chatbots'|'xrays'): void
+  (e:'navigate', v:'home'|'doctors'|'chatbots'|'xrays'): void;
+  (e:'toggleSidebar'): void;
 }>()
 
 const navigateToConsultant = () => {
@@ -151,6 +155,26 @@ onMounted(() => {
 .brand-text span {
   font-size: .8rem;
   color: var(--muted);
+}
+
+.sidebar-toggle {
+  margin-left: auto;
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 8px;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.sidebar-toggle:hover {
+  background: var(--ghost-bg-hover);
+  color: var(--text);
 }
 
 .nav {
@@ -270,7 +294,9 @@ html.dark .foot-cta {
   box-shadow: 0 2px 6px rgba(0,0,0,0.15);
   pointer-events: none;   /* bubble itself isn’t interactive */
 }
-.open {
-  display: none;
+@media (min-width: 721px) {
+  .sidebar:not(.open) {
+    display: none;
+  }
 }
 </style>
