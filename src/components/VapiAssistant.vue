@@ -2034,9 +2034,8 @@ html {
 /* ---- Top row (doctor name + listening pill) ---- */
 .call-top-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: flex-start;
+  justify-content: space-between;
+  align-items: center;
 }
 
 /* ========== MOBILE RESPONSIVE ========== */
@@ -2051,26 +2050,11 @@ html {
   .call-center {
     width: 100%;
     height: auto;
-    min-height: 380px;
+    min-height: 480px;
   }
 
   .call-sidebar {
-    width: 100%;
-    height: auto;
-    max-height: 260px;
-  }
-
-  .call-sidebar .sidebar-content {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-    overflow-x: auto;
-  }
-
-  .call-sidebar .sidebar-item {
-    flex: 1 1 140px;
-    flex-direction: row;
-    text-align: left;
+    display: none;
   }
 }
 
