@@ -131,6 +131,15 @@ const safeLinks = computed(() => (props.links || []).filter(l => l && l.label &&
   .left { place-items: center; }
   .right { order: 3; }
 }
+
+@media (max-width: 480px) {
+  .container { padding: 12px 14px; gap: 8px; }
+  .links { gap: 6px; }
+  .link span { display: none; }
+  .link { padding: 8px; }
+  .meta { font-size: 0.8rem; }
+  .right { font-size: 0.8rem; }
+}
 html.dark .footer {
   background:
     linear-gradient(180deg, rgba(6,182,212,0.16) 0%, rgba(6,182,212,0.08) 100%),

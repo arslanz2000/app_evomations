@@ -168,23 +168,41 @@ function logout() {
   border-radius: 8px;
 }
 
-@media (max-width: 600px) {
-  .topbar {
-    padding: 8px 12px;
-  }
-  .breadcrumbs, .top-actions button span, .top-actions button i + span {
+@media (max-width: 720px) {
+  .top-actions .ghost {
     display: none;
   }
-  /* If buttons are icons + text, hiding text */
+}
+
+@media (max-width: 600px) {
+  .topbar {
+    padding: 8px 10px;
+    gap: 8px;
+  }
+  .breadcrumbs {
+    display: none;
+  }
   .top-actions button {
     padding: 8px 10px;
-    font-size: 0; /* Hide text if no span */
+  }
+  .top-actions button span {
+    display: none;
   }
   .top-actions button i {
     font-size: 1.1rem;
     margin: 0;
   }
   .user-chip span {
+    display: none;
+  }
+  .user-chip button.small {
+    font-size: 0.75rem;
+    padding: 3px 6px;
+  }
+}
+
+@media (max-width: 400px) {
+  .top-actions {
     display: none;
   }
 }

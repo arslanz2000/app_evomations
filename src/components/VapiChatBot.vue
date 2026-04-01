@@ -235,7 +235,8 @@ function navigateToVoice() {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
   display: grid;
   grid-template-rows: auto 1fr auto;
-  height: 65vh; /* Reduced height to make room for voice card */
+  height: 65vh;
+  min-height: 320px;
 }
 
 /* Voice Card Styles */
@@ -348,6 +349,14 @@ function navigateToVoice() {
 }
 
 /* Existing Chat Styles... keeping them mostly as is but ensuring responsiveness */
+
+.doctor-img {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
 
 .chat__bar {
   background: linear-gradient(135deg, #1a73e8, #0048a8);
@@ -566,7 +575,7 @@ function navigateToVoice() {
   padding: 20px 16px;
   gap: 12px;
   border-radius: 10px;
-  margin: 30px;
+  margin: 16px;
 }
 
 .composer-input {

@@ -254,5 +254,25 @@ async function send() {
 .thumb__x { position:absolute; top:-6px; right:-6px; width:20px; height:20px; border:0; border-radius:50%; background:#ef4444; color:#fff; cursor:pointer; }
 
 .error { grid-column: 1 / -1; color:#ffb4b4; background: rgba(255,0,0,.08); border:1px solid rgba(255,0,0,.22); padding:8px 10px; border-radius:10px; margin: 8px 12px; }
+
+@media (max-width: 768px) {
+  .chat { margin: 12px; height: 80vh; min-height: 400px; }
+  .msg__bubble { max-width: 85%; }
+  .msg__img { max-width: 180px; max-height: 180px; }
+  .attach__btn span { display: none; }
+  .thumbs { max-width: 160px; }
+}
+
+@media (max-width: 480px) {
+  .chat { margin: 8px; height: 82vh; border-radius: 12px; }
+  .chat__bar { padding: 10px 12px; font-size: 0.9rem; }
+  .chat__body { padding: 10px; }
+  .composer { gap: 6px; padding: 8px; }
+  .composer input { padding: 10px; font-size: 0.9rem; }
+  .msg__bubble { max-width: 90%; padding: 10px 12px; }
+  .msg__img { max-width: 140px; max-height: 140px; }
+  .send { width: 40px; height: 40px; }
+  .thumb img { width: 56px; height: 56px; }
+}
 </style>
   

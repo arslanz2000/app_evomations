@@ -1,6 +1,5 @@
 <template>
-  <!-- <div class="app-shell"> -->
-    <div class="app-shell" :class="{ 'sidebar-closed': !sidebarOpen }">
+  <div class="app-shell" :class="{ 'sidebar-closed': !sidebarOpen }">
 
     <!-- Sidebar (hide on signup/login) -->
     <Sidebar
@@ -211,8 +210,7 @@ const XrayMriChat   = defineAsyncComponent(() => import('./components/XrayMriCha
 
 // Nav + view state
 const sidebarOpen = ref(true)
-const currentView = ref(localStorage.getItem("currentView") || "signup"); 
-// const currentView = ref('home')         // 'home' | 'doctors' | 'chatbots'
+const currentView = ref(localStorage.getItem("currentView") || "signup")
 
 // Navigate helper
 function setView(view) {
@@ -240,7 +238,6 @@ const theme = ref('light')
 onMounted(() => {
   const params = window.location.href;
   const googleToken = params.match(/[\?&]token=([^&]+)/);
-  console.log("hiihi",googleToken);
 
   if (googleToken) {
     localStorage.setItem("authToken", googleToken);

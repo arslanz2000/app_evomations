@@ -4,7 +4,7 @@
     <section v-if="callActive && !showAllMode" class="call-surface">
       <div class="call-layout">
         <div class="call-center">
-          <div style="display: flex">
+          <div class="call-top-row">
             <div class="doctor-name">
               <h2 class="call-title">
                 {{ currentDoctorName.replace(/\(.*\)/, "").trim() }}
@@ -32,7 +32,7 @@
             </div>
           </div>
           <div class="call-cta-row">
-            <button class="round-cta" @click="toggleMute">
+            <button class="round-cta" :class="{ active: isMuted }" @click="toggleMute">
               <i
                 class="fas"
                 :class="isMuted ? 'fa-microphone-slash' : 'fa-microphone'"
@@ -44,7 +44,7 @@
                 :class="isSpeakerOn ? 'fa-volume-up' : 'fa-volume-mute'"
               ></i>
             </button>
-            <button class="round-cta" @click="toggleHold">
+            <button class="round-cta" :class="{ active: isOnHold }" @click="toggleHold">
               <i class="fas" :class="isOnHold ? 'fa-play' : 'fa-pause'"></i>
             </button>
             <button class="round-cta end" @click="stopCall">
@@ -348,7 +348,6 @@ const canSendControls = ref(false);
 const controlQueue = [];
 const showAllMode = ref(false);
 const allSummaries = ref([]);
-const allSummariesSection = ref(null);
 
 function flushControls() {
   if (!vapi) return;
@@ -515,12 +514,6 @@ const doctors = ref([
     specialty: "Nutritionist",
     assistantId: "62107efe-3686-4974-80ac-6b61f17fc589",
   },
-  // {
-  //   id: "dr-anne",
-  //   name: "Dr Anne",
-  //   specialty: "Psychologist",
-  //   assistantId: "e4cb63da-8ae6-4f08-8f78-25ad8cc981df",
-  // },
 ]);
 
 const OPENAI_MODEL = "gpt-4o-mini";
@@ -535,11 +528,9 @@ const callTimer = ref("00:00");
 const searchQuery = ref("");
 const specialtyFilter = ref("");
 const sortBy = ref("name");
-const callProgress = ref(0);
 const chatText = ref("");
 const sending = ref(false);
 
-const callState = ref("idle");
 const isMuted = ref(false);
 const isSpeakerOn = ref(false);
 const isOnHold = ref(false);
@@ -563,10 +554,6 @@ const currentDoctorName = computed(() => {
   const doctor = doctors.value.find((d) => d.id === activeDoctorId.value);
   return doctor ? `${doctor.name} (${doctor.specialty})` : "";
 });
-
-const uniqueSpecialties = computed(() =>
-  [...new Set(doctors.value.map((d) => d.specialty))].sort(),
-);
 
 const filteredDoctors = computed(() => {
   let result = [...doctors.value];
@@ -624,7 +611,6 @@ async function saveSummary(doctorId, summaryText) {
 }
 
 const latestSummary = ref(null);
-const sidebarSections = ref([]);
 
 async function fetchLatestSummary() {
   const token = localStorage.getItem("token");
@@ -632,32 +618,7 @@ async function fetchLatestSummary() {
     const { data } = await axios.get(`${BACKEND_API_KEY}/summaries/latest`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-
-    if (data) {
-      latestSummary.value = data;
-      const summaryText = data.summary;
-
-      sidebarSections.value = [
-        {
-          title: "Key Points",
-          icon: "fas fa-stethoscope",
-        },
-        {
-          title: "Observations",
-          icon: "fas fa-heartbeat",
-        },
-        {
-          title: "Suggestions",
-          icon: "fas fa-vials",
-        },
-        {
-          title: "Next Steps",
-          icon: "fas fa-tint",
-        },
-      ];
-    } else {
-      latestSummary.value = null;
-    }
+    latestSummary.value = data || null;
   } catch (err) {
     console.error(
       "❌ Failed to fetch latest summary:",
@@ -775,8 +736,6 @@ const startCall = async (doctor) => {
   callStartedAt.value = new Date();
 
   activeDoctorId.value = doctor.id;
-  callState.value = "calling";
-  callProgress.value = 0;
   status.value = `Connecting to ${doctor.name}...`;
   statusLoading.value = true;
   captions.value = [];
@@ -785,11 +744,6 @@ const startCall = async (doctor) => {
   controlQueue.length = 0;
   setAssistantMuted(false);
 
-  const interval = setInterval(() => {
-    if (callProgress.value < 100) callProgress.value += 10;
-    else clearInterval(interval);
-  }, 300);
-
   try {
     await vapi.start(doctor.assistantId, {
       clientMessages: [
@@ -797,41 +751,24 @@ const startCall = async (doctor) => {
       ],
     });
 
-    callState.value = "active";
     callActive.value = true;
     statusLoading.value = false;
     startCallTimer();
   } catch (err) {
     handleVapiError(err);
-    callState.value = "idle";
     callActive.value = false;
     statusLoading.value = false;
   }
 };
 
-// const handleCallEnd = () => {
-//   callState.value = "idle";
-//   callActive.value = false;
-//   clearInterval(timerInterval);
-//   isMuted.value = false;
-//   assistantMuted.value = false;
-//   isSpeakerOn.value = false;
-//   canSendControls.value = false;
-//   controlQueue.length = 0;
-//   lastCallTimer.value = callTimer.value;
-//   status.value = `Session ended with ${currentDoctorName.value}`;
-//   showTranscriptPrompt.value = !suppressSummaryPopup.value;
-//   suppressSummaryPopup.value = false;
-//   setTimeout(() => (status.value = ""), 5000);
-// };
 const handleCallEnd = () => {
-  callState.value = 'idle'
   callActive.value = false
-  showAllMode.value = false  // Add this line
+  showAllMode.value = false
   clearInterval(timerInterval)
   isMuted.value = false
   assistantMuted.value = false
   isSpeakerOn.value = false
+  isOnHold.value = false
   canSendControls.value = false
   controlQueue.length = 0
   lastCallTimer.value = callTimer.value
@@ -1149,32 +1086,6 @@ ${convoText}
     important_notes: ensure(json.important_notes),
   };
 }
-// async function showAllSummaries() {
-//   showAllMode.value = true;
-//   const token = localStorage.getItem("token");
-//   try {
-//     const { data } = await axios.get(`${BACKEND_API_KEY}/summaries`, {
-//       headers: { Authorization: `Bearer ${token}` },
-//     });
-//     allSummaries.value = data || [];
-//     await nextTick();
-//     if (allSummariesSection.value) {
-//       allSummariesSection.value.scrollIntoView({
-//         behavior: "smooth",
-//         block: "start",
-//       });
-//     }
-//   } catch (err) {
-//     console.error(
-//       "❌ Failed to fetch all summaries:",
-//       err.response?.data || err,
-//     );
-//   }
-// }
-
-// function backToLatest() {
-//   showAllMode.value = false;
-// }
 async function showAllSummaries() {
   if (callActive.value) {
     suppressSummaryPopup.value = true;
@@ -1200,14 +1111,31 @@ function backToLatest() {
 }
 const toggleMute = () => {
   isMuted.value = !isMuted.value;
-  isMuted.value ? vapi.mute() : vapi.unmute();
+  vapi.setMuted(isMuted.value);
 };
 const toggleSpeaker = () => {
-  const next = !isSpeakerOn.value;
-  setAssistantMuted(!next);
+  isSpeakerOn.value = !isSpeakerOn.value;
+  document.querySelectorAll('audio').forEach(el => {
+    el.muted = !isSpeakerOn.value;
+  });
 };
 const toggleHold = () => {
   isOnHold.value = !isOnHold.value;
+  if (isOnHold.value) {
+    assistantMuted.value = true;
+    vapi.setMuted(true);
+    try { vapi.send({ type: 'control', control: 'mute-assistant' }); } catch (_) {}
+  } else {
+    assistantMuted.value = false;
+    vapi.setMuted(isMuted.value);
+    try { vapi.send({ type: 'control', control: 'unmute-assistant' }); } catch (_) {}
+    try {
+      vapi.send({
+        type: 'add-message',
+        message: { role: 'system', content: 'The call has been taken off hold. Resume the conversation naturally.' }
+      });
+    } catch (_) {}
+  }
 };
 
 const handleVapiError = (err) => {
@@ -1331,8 +1259,9 @@ onMounted(() => {
   });
 
   vapi.on("call-start", () => {
-    callState.value = "active";
     callActive.value = true;
+    isMuted.value = false;
+    vapi.setMuted(false);
     startCallTimer();
     if (!canSendControls.value) {
       canSendControls.value = true;
@@ -1593,6 +1522,7 @@ html {
   display: flex;
   justify-content: center;
   gap: 20px;
+  flex-wrap: wrap;
   margin-top: auto;
   margin-bottom: 16px;
 }
@@ -1764,7 +1694,7 @@ html {
 
 .doctor-card {
   width: auto;
-  height: 360px;
+  min-height: 360px;
   background: #ffffff;
   box-shadow: 0px 4px 24px rgba(0, 0, 0, 0.08);
   border-radius: 12px;
@@ -1831,18 +1761,25 @@ html {
 }
 
 .doctor-actions .btn--call {
-  width: 220px;
+  width: auto;
+  max-width: 100%;
   height: 49px;
+  padding: 0 24px;
   background: #27548b;
   color: #ffffff;
   border-radius: 6px;
   border: none;
   font-family: "Roboto", sans-serif;
   font-weight: 500;
-  font-size: 18px;
+  font-size: 16px;
   line-height: 19px;
   cursor: pointer;
   transition: background 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  white-space: nowrap;
 }
 
 .doctor-actions .btn--call:hover {
@@ -2087,5 +2024,149 @@ html {
   font-size: 3rem;
   margin-bottom: 10px;
   color: #ccc;
+}
+
+/* ---- Active state for mute button ---- */
+.round-cta.active {
+  background: #ef4444;
+}
+
+/* ---- Top row (doctor name + listening pill) ---- */
+.call-top-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+/* ========== MOBILE RESPONSIVE ========== */
+
+@media (max-width: 900px) {
+  .call-layout {
+    flex-direction: column;
+    gap: 16px;
+    align-items: stretch;
+  }
+
+  .call-center {
+    width: 100%;
+    height: auto;
+    min-height: 380px;
+  }
+
+  .call-sidebar {
+    width: 100%;
+    height: auto;
+    max-height: 260px;
+  }
+
+  .call-sidebar .sidebar-content {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    overflow-x: auto;
+  }
+
+  .call-sidebar .sidebar-item {
+    flex: 1 1 140px;
+    flex-direction: row;
+    text-align: left;
+  }
+}
+
+@media (max-width: 600px) {
+  .call-center {
+    padding: 14px;
+    min-height: 340px;
+  }
+
+  .doctor-name {
+    width: auto;
+    max-width: 200px;
+    padding: 8px 14px;
+  }
+
+  .call-title {
+    font-size: 13px;
+  }
+
+  .listening-pill {
+    padding: 8px 14px;
+    font-size: 13px;
+    margin-top: 8px;
+    margin-left: 0;
+  }
+
+  .vid-avatar {
+    width: 110px;
+    height: 110px;
+  }
+
+  .call-cta-row {
+    gap: 12px;
+  }
+
+  .round-cta {
+    width: 50px;
+    height: 50px;
+    font-size: 1.1rem;
+  }
+
+  .chat-wrap {
+    margin-top: 12px;
+    padding: 12px;
+  }
+
+  .bubble-list {
+    max-height: 220px;
+  }
+
+  .all-summaries-section {
+    padding: 20px 14px;
+  }
+
+  .summaries-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .section-title {
+    padding: 14px 16px 8px;
+    font-size: 1.2rem;
+  }
+
+  .new-c {
+    padding: 1px 16px 10px;
+  }
+
+  .doctor-grid {
+    padding: 16px;
+    gap: 20px;
+  }
+}
+
+@media (max-width: 420px) {
+  .call-center {
+    padding: 10px;
+  }
+
+  .doctor-name {
+    max-width: 160px;
+    padding: 7px 12px;
+  }
+
+  .vid-avatar {
+    width: 90px;
+    height: 90px;
+  }
+
+  .round-cta {
+    width: 44px;
+    height: 44px;
+    font-size: 1rem;
+  }
+
+  .call-cta-row {
+    gap: 10px;
+  }
 }
 </style>

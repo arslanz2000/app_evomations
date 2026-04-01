@@ -80,12 +80,14 @@ const registerWithGoogle = () => {
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 100vh;
+  min-height: 100vh;
   width: 100vw;
   background: var(--bg);
   position: fixed;
   top: 0;
   left: 0;
+  overflow-y: auto;
+  padding: 20px 0;
 }
 .google-multi {
   font-size: 22px;

@@ -173,7 +173,19 @@ button { width: fit-content; padding: 10px 14px; border: 0; border-radius: 10px;
 button.secondary { background: #111827; }
 button.ghost { background: #e5e7eb; color: #111827; }
 button:disabled { background: #9ca3af; cursor: not-allowed; }
-.answer, .error { padding: 12px; border-left: 3px solid; background: #f9fafb; border-radius: 8px; }
+.answer, .error { padding: 12px; border-left: 3px solid; background: #f9fafb; border-radius: 8px; overflow-x: auto; }
 .answer { border-left-color: #4f46e5; }
 .error { border-left-color: #dc2626; }
+
+@media (max-width: 600px) {
+  .chat { margin: 12px; gap: 10px; }
+  textarea { font-size: 0.95rem; }
+  button { padding: 9px 12px; font-size: 0.9rem; }
+}
+
+@media (max-width: 480px) {
+  .chat { margin: 8px; }
+  .row { gap: 8px; }
+  button { padding: 8px 10px; font-size: 0.85rem; }
+}
 </style>
