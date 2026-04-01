@@ -336,7 +336,6 @@ html.dark {
 </style>
 
 <style scoped>
-@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css');
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body, #app { height: 100%; overflow-x: hidden; }

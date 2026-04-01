@@ -265,7 +265,7 @@
               @click="startCall(doctor)"
               :disabled="callActive && activeDoctorId === doctor.id"
             >
-              <i class="fas fa-phone-alt"></i>
+              <i class="fas fa-phone"></i>
               {{
                 callActive && activeDoctorId === doctor.id
                   ? "In Call..."
