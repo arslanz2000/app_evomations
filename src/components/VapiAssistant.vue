@@ -25,7 +25,7 @@
           </div>
           <div class="doctor-profile">
             <div class="vid-avatar">
-              <img src="/src/assets/image_doc.png" />
+              <img :src="`/${activeDoctorId}.png`" :alt="currentDoctorName" @error="$event.target.src='/default-doctor.png'" />
             </div>
             <div class="call-timer-big">
               <i class="fas fa-clock"></i> {{ callTimer }}
@@ -370,29 +370,30 @@ function flushControls() {
 const specialtyDescriptions = {
   "ENT Specialist":
     "Support for ear, nose, and throat issues like allergies, sinus trouble, and infections.",
-  Dentistry:
+  Dentist:
     "Quick guidance on tooth pain, cavities, gum health, and oral hygiene.",
-  Urology: "Help with urinary tract concerns, kidney issues, and men’s health.",
-  Endocrinology:
+  Urologist: "Help with urinary tract concerns, kidney issues, and men’s health.",
+  Endocrinologist:
     "Advice on hormone health, thyroid conditions, and diabetes management.",
-  Cardiology:
+  Cardiologist:
     "Heart health insights, from blood pressure concerns to chest discomfort.",
-  Neurology:
+  Neurologist:
     "Support for headaches, nerve pain, memory, and neurological conditions.",
-  Pulmonology: "Guidance on breathing issues, asthma, and lung health.",
-  Gastroenterology:
+  Pulmonologist: "Guidance on breathing issues, asthma, and lung health.",
+  Gastroenterologist:
     "Digestive health support, including stomach pain, reflux, and IBS.",
-  Oncology:
+  Oncologist:
     "Information and support related to cancer risks, symptoms, and treatments.",
-  Psychiatry:
+  Psychiatrist:
     "Mental health insights for stress, anxiety, depression, and emotional well-being.",
   Psychologist:
     "Guidance for emotional wellness, behavior, and coping strategies.",
-  Orthopedics: "Guidance on bones, joints, and musculoskeletal injuries.",
-  Infectology: "Helps treat infections, fevers, and prevent them.",
-  Dermatology: "Skin health advice for rashes, acne, and other conditions.",
-  Ophthalmology: "Eye care guidance, from vision issues to eye infections.",
-  Hematology: "Support for blood-related conditions and clotting concerns.",
+  Orthopedist: "Guidance on bones, joints, and musculoskeletal injuries.",
+  Infectologist: "Helps treat infections, fevers, and prevent them.",
+  Dermatologist: "Skin health advice for rashes, acne, and other conditions.",
+  Ophthalmologist: "Eye care guidance, from vision issues to eye infections.",
+  Hematologist: "Support for blood-related conditions and clotting concerns.",
+  Gynecologist: "Women’s health, reproductive care, and hormonal guidance.",
   Nutritionist: "Advice on diet, nutrition, and healthy lifestyle choices.",
   Pediatrician: "Care and guidance for infants, children, and adolescents.",
   "General Physician":
@@ -403,85 +404,85 @@ const doctors = ref([
   {
     id: "dr-david",
     name: "Dr. David Chen",
-    specialty: "Cardiology",
+    specialty: "Cardiologist",
     assistantId: "ba2f0969-4750-4190-a91f-2c5dc814bced",
   },
   {
     id: "dr-miles",
     name: "Dr. Miles Johnson",
-    specialty: "Oncology",
+    specialty: "Oncologist",
     assistantId: "e225eced-43ba-474c-989e-4497e8f8588c",
   },
   {
     id: "dr-morgan",
     name: "Dr. Morgan Lee",
-    specialty: "Hematology",
+    specialty: "Hematologist",
     assistantId: "6ee484ac-18fb-401c-ba14-67a1a8ffc5d5",
   },
   {
     id: "dr-taylor",
     name: "Dr. Taylor Wilson",
-    specialty: "Gynecology",
+    specialty: "Gynecologist",
     assistantId: "6b04a133-3158-4c3c-b5af-9f83b38efd56",
   },
   {
     id: "dr-omaar",
     name: "Dr. Omaar Ahmed",
-    specialty: "Ophthalmology",
+    specialty: "Ophthalmologist",
     assistantId: "e60bcf74-a1ab-4453-9ebc-77e01a90558a",
   },
   {
     id: "dr-grace",
     name: "Dr. Grace Kim",
-    specialty: "Dermatology",
+    specialty: "Dermatologist",
     assistantId: "c0c28d30-8e0d-4787-8072-e2cd6a1df032",
   },
   {
     id: "dr-andrew",
     name: "Dr. Andrew Park",
-    specialty: "Infectology",
+    specialty: "Infectologist",
     assistantId: "c25e654b-4ad5-4e72-b6b0-49354fb8c957",
   },
   {
     id: "dr-scarlett",
     name: "Dr. Scarlett Davis",
-    specialty: "Orthopedics",
+    specialty: "Orthopedist",
     assistantId: "10b4d79f-9e8a-4b18-b528-a8ff2ca4fb94",
   },
   {
     id: "dr-nova",
     name: "Dr. Nova Rodriguez",
-    specialty: "Psychiatry",
+    specialty: "Psychiatrist",
     assistantId: "e4608542-a6c0-4517-8df0-72c539ea5014",
   },
   {
     id: "dr-robert",
     name: "Dr. Robert Brown",
-    specialty: "Gastroenterology",
+    specialty: "Gastroenterologist",
     assistantId: "38523be1-eaa4-4f11-a418-4c7cccf20212",
   },
   {
     id: "dr-daniel",
     name: "Dr. Daniel Garcia",
-    specialty: "Pulmonology",
+    specialty: "Pulmonologist",
     assistantId: "2489de55-7d05-4282-ab89-acd44a1198c7",
   },
   {
     id: "dr-williams",
     name: "Dr. Williams Smith",
-    specialty: "Dentistry",
+    specialty: "Dentist",
     assistantId: "d43273a6-82e4-4462-ba07-72346e23e6f9",
   },
   {
     id: "dr-susan",
     name: "Dr. Susan Miller",
-    specialty: "Endocrinology",
+    specialty: "Endocrinologist",
     assistantId: "3ce663b3-2ac9-463e-a943-bac7b7b8ea0f",
   },
   {
     id: "dr-emma",
     name: "Dr. Emma Thompson",
-    specialty: "Urology",
+    specialty: "Urologist",
     assistantId: "6a266708-6b19-4b92-92ad-832a2e960abd",
   },
   {
@@ -493,7 +494,7 @@ const doctors = ref([
   {
     id: "dr-michael",
     name: "Dr. Michael Wright",
-    specialty: "Neurology",
+    specialty: "Neurologist",
     assistantId: "1c964479-ebe7-4fe7-b446-acb23173664e",
   },
   {
@@ -2050,7 +2051,7 @@ html {
   .call-center {
     width: 100%;
     height: auto;
-    min-height: 480px;
+    min-height: 380px;
   }
 
   .call-sidebar {
@@ -2061,7 +2062,7 @@ html {
 @media (max-width: 600px) {
   .call-center {
     padding: 14px;
-    min-height: 340px;
+    min-height: 480px;
   }
 
   .doctor-name {
