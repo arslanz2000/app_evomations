@@ -4,6 +4,16 @@
       <header class="chat__bar">
         <img src="/dr-sophie.png" alt="Dr Sophie" class="doctor-img" />
         <span style="margin-left:15px;">Dr Sophie — General Physician</span>
+        <button
+          v-if="messages.length > 1"
+          class="download-btn"
+          @click="downloadSummary"
+          :disabled="summarizing"
+          title="Download conversation summary"
+        >
+          <i class="fas" :class="summarizing ? 'fa-spinner fa-spin' : 'fa-file-download'"></i>
+          {{ summarizing ? 'Generating…' : 'Download Summary' }}
+        </button>
       </header>
 
       <main class="chat__body" ref="scrollEl">
@@ -78,7 +88,8 @@
 
 <script setup>
 import { ref, nextTick, computed } from 'vue'
-import { marked } from 'marked';
+import { marked } from 'marked'
+import { jsPDF } from 'jspdf'
 
 const emit = defineEmits(['navigate'])
 
@@ -208,6 +219,190 @@ async function send() {
   } finally {
     loading.value = false
     await scrollToBottom()
+  }
+}
+
+// -- DOWNLOAD SUMMARY --
+const summarizing = ref(false)
+
+function getConversationLines() {
+  return messages.value.map(m => {
+    let text = ''
+    if (Array.isArray(m.content)) {
+      text = m.content.filter(p => p?.type === 'text').map(p => p.text).join(' ').trim() || '[Image attached]'
+    } else {
+      text = String(m.content || '').trim()
+    }
+    return { role: m.role, text }
+  }).filter(l => l.text)
+}
+
+function toConversationText(lines) {
+  return lines.map(l => `${l.role === 'assistant' ? 'Doctor' : 'Patient'}: ${l.text}`).join('\n')
+}
+
+function buildHeuristicSections(lines) {
+  const dedupe = arr => Array.from(new Set(arr.map(t => String(t).trim()))).filter(Boolean)
+  const userU = lines.filter(l => l.role !== 'assistant').map(l => l.text).filter(t => t.split(/\s+/).length > 2)
+  const docU = lines.filter(l => l.role === 'assistant').map(l => l.text).filter(t => t.split(/\s+/).length > 2)
+  const obsKw = /(seem|observ|finding|exam|likely|stable|normal|abnormal|range|vitals|labs?|scan|imaging|x-?ray|mri|ct)/i
+  const recKw = /(should|recommend|advise|consider|monitor|avoid|increase|decrease|start|stop|take|use|apply|dose|dosage)/i
+  const nextKw = /(next|follow[- ]?up|schedule|book|test|lab|scan|referr|see|appointment|blood|results|recheck|review)/i
+  return {
+    key_points: dedupe([...userU.slice(0, 4), ...docU.slice(0, 2)]).slice(0, 8),
+    observations: dedupe(docU.filter(t => obsKw.test(t))).slice(0, 10),
+    suggestions: dedupe(docU.filter(t => recKw.test(t))).slice(0, 12),
+    next_steps: dedupe(docU.filter(t => nextKw.test(t))).slice(0, 10),
+    important_notes: [
+      'This report is auto-generated from a virtual conversation.',
+      'It is not a diagnosis or a substitute for in-person medical care.',
+      'Seek urgent care if symptoms worsen or new severe symptoms develop.',
+    ],
+  }
+}
+
+async function generateReportWithGPT(convoText) {
+  const sys = `You are a medical scribe. Produce a concise, de-duplicated report from a virtual consultation transcript.
+Do NOT invent facts. Use only the transcript content.
+Return STRICT JSON with this shape:
+{"key_points":string[],"observations":string[],"suggestions":string[],"next_steps":string[],"important_notes":string[]}
+Each item should be a short bullet (<= 20 words). Include a generic safety disclaimer inside "important_notes".`
+
+  const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model,
+      response_format: { type: 'json_object' },
+      messages: [{ role: 'system', content: sys }, { role: 'user', content: `Physician: Dr. Sophie\n\nTranscript:\n${convoText}` }],
+      temperature: 0.2,
+    }),
+  })
+  if (!resp.ok) throw new Error(`OpenAI ${resp.status}`)
+  const data = await resp.json()
+  let json = {}
+  try { json = JSON.parse(data?.choices?.[0]?.message?.content || '{}') } catch (_) { }
+  const ensure = a => (Array.isArray(a) ? a.filter(Boolean) : [])
+  return {
+    key_points: ensure(json.key_points),
+    observations: ensure(json.observations),
+    suggestions: ensure(json.suggestions),
+    next_steps: ensure(json.next_steps),
+    important_notes: ensure(json.important_notes),
+  }
+}
+
+async function downloadSummary() {
+  if (summarizing.value) return
+  summarizing.value = true
+  try {
+    const lines = getConversationLines()
+    const convoText = toConversationText(lines)
+    const started = new Date().toLocaleString('en-PK', { dateStyle: 'long', timeStyle: 'short' })
+
+    let sections
+    try {
+      sections = await generateReportWithGPT(convoText)
+    } catch (e) {
+      console.error('GPT report failed, using fallback:', e)
+      sections = buildHeuristicSections(lines)
+    }
+
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' })
+    const pageW = doc.internal.pageSize.getWidth()
+    const pageH = doc.internal.pageSize.getHeight()
+    const margin = 16
+    const maxW = pageW - margin * 2
+    let y = margin
+    const BRAND = { r: 26, g: 115, b: 232 }
+    const MUTED = 120
+
+    // Header
+    doc.setFillColor(BRAND.r, BRAND.g, BRAND.b)
+    doc.rect(0, 0, pageW, 26, 'F')
+    doc.setTextColor(255)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(18)
+    doc.text('Consultation Report', margin, 16)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(10)
+    doc.text('Auto-generated from your virtual consultation', margin, 22)
+
+    // Info chips
+    y = 34
+    doc.setTextColor(0);
+    ['Physician', 'Date', 'Type'].forEach((label, idx) => {
+      const values = { Physician: 'Dr. Sophie', Date: started, Type: 'Text Chat' }
+      const chipW = (pageW - margin * 2) / 3 - 4
+      const x = margin + idx * (chipW + 6)
+      doc.setFontSize(8)
+      doc.setTextColor(MUTED)
+      doc.text(label.toUpperCase(), x + 3, y + 4)
+      doc.setFontSize(11)
+      doc.setTextColor(0)
+      const vLines = doc.splitTextToSize(values[label], chipW - 6)
+      doc.text(vLines, x + 3, y + 8)
+    })
+    y += 18
+
+    // Divider
+    doc.setDrawColor(210)
+    doc.setLineWidth(0.4)
+    doc.line(margin, y, pageW - margin, y)
+    y += 4
+
+    function ensureSpace(n = 1) {
+      if (y + n * 6 + 14 > pageH - margin) { doc.addPage(); y = margin + 2 }
+    }
+
+    function section(title, bulletsArr) {
+      ensureSpace(3)
+      doc.setFillColor(240, 244, 255)
+      doc.setDrawColor(220)
+      doc.roundedRect(margin, y, maxW, 10, 2, 2, 'FD')
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(12)
+      doc.setTextColor(BRAND.r, BRAND.g, BRAND.b)
+      doc.text(title, margin + 4, y + 7)
+      y += 14
+      if (!bulletsArr || !bulletsArr.length) {
+        doc.setTextColor(MUTED); doc.setFont('helvetica', 'normal'); doc.setFontSize(11)
+        doc.text('— none —', margin, y); doc.setTextColor(0); y += 6
+      } else {
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(11); doc.setTextColor(0)
+        for (const t of bulletsArr) {
+          const ls = doc.splitTextToSize(String(t), maxW - 8)
+          ensureSpace(ls.length)
+          doc.setFont('helvetica', 'bold'); doc.text('•', margin + 1, y)
+          doc.setFont('helvetica', 'normal'); doc.text(ls, margin + 6, y)
+          y += 6 * Math.max(1, ls.length)
+        }
+      }
+      y += 2
+    }
+
+    section('Key Points Discussed', sections.key_points)
+    section('Observations', sections.observations)
+    section('Suggestions', sections.suggestions)
+    section('Next Steps / Follow-up', sections.next_steps)
+    section('Important Notes', sections.important_notes?.length ? sections.important_notes : [
+      'This report is auto-generated from a virtual conversation.',
+      'It is not a diagnosis or a substitute for in-person medical care.',
+      'Seek urgent care if symptoms worsen or new severe symptoms develop.',
+    ])
+
+    // Page numbers
+    const pageCount = doc.getNumberOfPages()
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i)
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(MUTED)
+      doc.text(`Page ${i} of ${pageCount}`, pageW - margin, pageH - 6, { align: 'right' })
+    }
+
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')
+    doc.save(`Dr-Sophie__${stamp}__consultation.pdf`)
+  } finally {
+    summarizing.value = false
   }
 }
 
@@ -374,6 +569,26 @@ function navigateToVoice() {
   font-size: 0.9rem;
   font-weight: 400;
   opacity: 0.85;
+}
+
+.download-btn {
+  margin-left: auto;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 20px;
+  padding: 7px 14px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.2s;
+  white-space: nowrap;
+}
+.download-btn:hover {
+  background: rgba(255, 255, 255, 0.35);
 }
 
 .chat__body {
