@@ -580,12 +580,15 @@ const activeBubbleIdx = ref({ user: null, assistant: null });
 const pendingMessages = [];
 
 function flushMessages() {
-  if (!vapi) return;
+  if (!vapi) { console.warn('[SkinFlow] flushMessages: vapi not ready'); return; }
+  console.log(`[SkinFlow] flushMessages called — pending: ${pendingMessages.length}, canSend: ${canSendControls.value}`);
   while (pendingMessages.length) {
     const t = pendingMessages.shift();
     try {
       vapi.send({ type: "add-message", message: { role: "user", content: t } });
+      console.log('[SkinFlow] message sent ✅:', t.slice(0, 80));
     } catch (e) {
+      console.warn('[SkinFlow] send failed, re-queuing:', e?.message);
       pendingMessages.unshift(t);
       break;
     }
@@ -743,6 +746,7 @@ const startCall = async (doctor) => {
 
   canSendControls.value = false;
   controlQueue.length = 0;
+  pendingMessages.length = 0;
   setAssistantMuted(false);
 
   try {
@@ -1246,6 +1250,7 @@ onMounted(() => {
 
   vapi.on("status-update", (m) => {
     const blob = JSON.stringify(m).toLowerCase();
+    console.log('[SkinFlow] status-update:', blob.slice(0, 120));
     if (
       !canSendControls.value &&
       (blob.includes("join") ||
@@ -1253,6 +1258,7 @@ onMounted(() => {
         blob.includes("connected") ||
         blob.includes("ready"))
     ) {
+      console.log('[SkinFlow] status-update triggered flush — pending:', pendingMessages.length);
       canSendControls.value = true;
       flushControls();
       flushMessages();
@@ -1264,6 +1270,16 @@ onMounted(() => {
     isMuted.value = false;
     vapi.setMuted(false);
     startCallTimer();
+
+    const skinSummary = localStorage.getItem('skinAnalysisSummary');
+    console.log('[SkinFlow] call-start — skinSummary in localStorage:', skinSummary ? '✅ found' : '❌ not found');
+    if (skinSummary) {
+      localStorage.removeItem('skinAnalysisSummary');
+      const contextMsg = `[Patient Skin Analysis Context]\n${skinSummary}\n\nPlease acknowledge this skin analysis and discuss the results with the patient.`;
+      pendingMessages.push(contextMsg);
+      console.log('[SkinFlow] summary pushed to pendingMessages, canSendControls:', canSendControls.value);
+    }
+
     if (!canSendControls.value) {
       canSendControls.value = true;
       flushControls();
