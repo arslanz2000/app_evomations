@@ -136,7 +136,20 @@
             <div class="bubble-meta">
               {{ c.role === "assistant" ? "Doctor" : "You" }}
             </div>
-            <div class="bubble-text">{{ c.text }}</div>
+            <!-- PDF card -->
+            <template v-if="c.pdfUrl">
+              <div class="pdf-bubble-card">
+                <div class="pdf-bubble-icon"><i class="fas fa-file-pdf"></i></div>
+                <div class="pdf-bubble-info">
+                  <span class="pdf-bubble-label">{{ c.pdfLabel }}</span>
+                  <span class="pdf-bubble-sub">Skin Analysis Report</span>
+                </div>
+                <a :href="c.pdfUrl" download="skin-analysis-report.pdf" class="pdf-bubble-dl">
+                  <i class="fas fa-download"></i>
+                </a>
+              </div>
+            </template>
+            <div v-else class="bubble-text">{{ c.text }}</div>
           </div>
 
           <div class="upload-row">
@@ -1272,12 +1285,30 @@ onMounted(() => {
     startCallTimer();
 
     const skinSummary = localStorage.getItem('skinAnalysisSummary');
-    console.log('[SkinFlow] call-start — skinSummary in localStorage:', skinSummary ? '✅ found' : '❌ not found');
+    const skinPDF     = localStorage.getItem('skinAnalysisPDF');
+    const skinPDFDate = localStorage.getItem('skinAnalysisPDFDate') || new Date().toLocaleDateString();
+
+    if (skinSummary) localStorage.removeItem('skinAnalysisSummary');
+    if (skinPDF)     { localStorage.removeItem('skinAnalysisPDF'); localStorage.removeItem('skinAnalysisPDFDate'); }
+
+    // Show PDF card in chat immediately
+    if (skinPDF) {
+      captions.value.push({
+        role: 'user',
+        text: '',
+        pdfUrl: skinPDF,
+        pdfLabel: `Skin Analysis Report — ${skinPDFDate}`,
+        ts: Date.now(),
+        final: true,
+      });
+      nextTick(() => {
+        if (captionsEl.value) captionsEl.value.scrollTop = captionsEl.value.scrollHeight;
+      });
+    }
+
+    // Send summary after doctor's first greeting is done
     if (skinSummary) {
-      localStorage.removeItem('skinAnalysisSummary');
-      const contextMsg = `[Patient Skin Analysis Context]\n${skinSummary}\n\nPlease acknowledge this skin analysis and discuss the results with the patient.`;
-      pendingMessages.push(contextMsg);
-      console.log('[SkinFlow] summary pushed to pendingMessages, canSendControls:', canSendControls.value);
+      window.__pendingSkinSummary = `I have my skin analysis results. Here is my report:\n\n${skinSummary}\n\nPlease review and guide me.`;
     }
 
     if (!canSendControls.value) {
@@ -1297,7 +1328,23 @@ onMounted(() => {
         ? m.transcriptType === "final"
         : !!m?.isFinal;
       addCaption(role, text, final);
-      if (final && text) finalTranscript.value.push({ role, text });
+      if (final && text) {
+        finalTranscript.value.push({ role, text });
+
+        // After doctor's first greeting — send skin summary
+        if (role === 'assistant' && window.__pendingSkinSummary) {
+          const msg = window.__pendingSkinSummary;
+          window.__pendingSkinSummary = null;
+          setTimeout(() => {
+            try {
+              vapi.send({ type: "add-message", message: { role: "user", content: msg } });
+              console.log('[SkinFlow] summary sent after doctor greeting ✅');
+            } catch(e) {
+              console.warn('[SkinFlow] summary send failed:', e?.message);
+            }
+          }, 500);
+        }
+      }
     }
 
     if (
@@ -1319,6 +1366,7 @@ onMounted(() => {
   });
 
   vapi.on("call-end", () => {
+    window.__pendingSkinSummary = null;
     handleCallEnd();
   });
   vapi.on("error", (e) => {
@@ -1631,6 +1679,54 @@ html {
 .upload-row {
   margin: 10px 0;
 }
+
+/* PDF card in chat bubble */
+.pdf-bubble-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 12px;
+  padding: 10px 14px;
+  min-width: 220px;
+}
+.pdf-bubble-icon {
+  font-size: 1.8rem;
+  color: #fca5a5;
+  flex-shrink: 0;
+}
+.pdf-bubble-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pdf-bubble-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: white;
+}
+.pdf-bubble-sub {
+  font-size: 0.72rem;
+  opacity: 0.75;
+  color: white;
+}
+.pdf-bubble-dl {
+  color: white;
+  background: rgba(255,255,255,0.2);
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  text-decoration: none;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+.pdf-bubble-dl:hover { background: rgba(255,255,255,0.35); }
 
 .attach-btn {
   display: inline-flex;

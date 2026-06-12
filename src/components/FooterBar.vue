@@ -35,7 +35,7 @@ import { computed } from 'vue'
 
 const props = defineProps({
   appName: { type: String, default: 'AI Doctors' },
-  company: { type: String, default: 'Arslan' },
+  company: { type: String, default: '' },
   version: { type: String, default: 'v1.0.0' },
   status: { type: String, default: 'operational' }, // 'operational' | 'degraded' | 'outage'
   links: {

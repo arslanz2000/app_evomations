@@ -150,7 +150,19 @@ export async function analyzeSkin(imageFile, concerns = ['wrinkle', 'pore', 'tex
         || pollJson.error
         || taskStatus
       console.error('[SkinAPI] Task failed — full response:', JSON.stringify(pollJson))
-      throw new Error(`Analysis error: ${reason}`)
+
+      // User-friendly error messages
+      const friendlyErrors = {
+        'error_lighting_dark':    'Photo is too dark — please move to a brighter area or turn on more lights.',
+        'error_lighting_bright':  'Photo is too bright — avoid direct sunlight or strong flash.',
+        'error_no_face':          'No face detected — make sure your face is clearly visible.',
+        'error_face_too_small':   'Face is too small — move closer to the camera.',
+        'error_multiple_faces':   'Multiple faces detected — please ensure only one face is in frame.',
+        'error_blur':             'Photo is blurry — hold the camera steady and try again.',
+        'error_angle':            'Face angle is too extreme — look straight at the camera.',
+      }
+      const friendly = friendlyErrors[reason] || `Analysis failed: ${reason}`
+      throw new Error(friendly)
     }
   }
 

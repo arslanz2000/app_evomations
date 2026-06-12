@@ -6,30 +6,20 @@
 
       <!-- Full-width Hero Banner -->
       <div class="hero-banner">
-        <div class="hero-left">
-          <span class="eyebrow"><i class="fas fa-spa"></i> AI-Powered Dermatology</span>
-          <h1>Skin Analysis</h1>
-          <p>Get an instant, AI-powered skin diagnostic report. Identify 10+ skin concerns in under 60 seconds.</p>
-          <div class="hero-stats">
-            <div class="hstat"><strong>10+</strong><span>Concerns Detected</span></div>
-            <div class="hstat"><strong>&lt;60s</strong><span>Analysis Time</span></div>
-            <div class="hstat"><strong>99%</strong><span>Accuracy Rate</span></div>
-          </div>
-        </div>
-        <div class="hero-right">
-          <div class="badge-group">
-            <span><i class="fas fa-shield-alt"></i> HIPAA Compliant</span>
-            <span><i class="fas fa-lock"></i> GDPR Compliant</span>
-            <span><i class="fas fa-user-md"></i> Dermatologist Verified</span>
-            <span><i class="fas fa-robot"></i> Reliefs AI</span>
-          </div>
-        </div>
+        <span class="eyebrow">AI - Powered Skin Dermatology</span>
+        <h1>Skin Analysis</h1>
+        <p>Get an Instant, AI - Powered skin diagnostic report. Identify 10+ skin concerns under 30 seconds.</p>
       </div>
 
-      <!-- Two-column layout: Controls left, Info right -->
-      <div class="two-col">
+      <!-- Three-column layout: Face Image left, Controls center, Info right -->
+      <div class="three-col">
 
-        <!-- LEFT: Capture Controls -->
+        <!-- LEFT: Face image -->
+        <div class="face-col">
+          <img src="/skin-face.png" alt="Skin Analysis" class="face-img" @error="onFaceImgError" ref="faceImgRef" />
+        </div>
+
+        <!-- CENTER: Capture Controls -->
         <div class="capture-col">
           <!-- Mode Tabs -->
           <div class="mode-tabs">
@@ -46,15 +36,9 @@
             <div class="upload-card" @click="pickFile" @dragover.prevent @drop.prevent="onDrop">
               <input ref="filePicker" type="file" accept="image/jpeg,image/png" class="hidden" @change="onFilePick" />
               <div v-if="!preview" class="upload-empty">
-                <div class="upload-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+                <img src="/Email-Attachment-Image Streamline Core.png" class="upload-placeholder-img" alt="Upload" />
                 <h3>Upload Your Selfie</h3>
-                <p>Drag & drop or click to browse</p>
-                <div class="upload-reqs">
-                  <span><i class="fas fa-check-circle"></i> JPG / PNG</span>
-                  <span><i class="fas fa-check-circle"></i> Min 480px</span>
-                  <span><i class="fas fa-check-circle"></i> Face 60–80% of frame</span>
-                  <span><i class="fas fa-check-circle"></i> Max 10MB</span>
-                </div>
+                <p>Drag & Drop or click to browser</p>
               </div>
               <div v-else class="upload-preview">
                 <img :src="preview" alt="Preview" />
@@ -71,15 +55,31 @@
               <div v-if="!preview" class="camera-feed-wrap">
                 <video v-if="cameraActive" ref="videoEl" class="camera-feed" autoplay playsinline muted></video>
                 <canvas ref="canvasEl" class="hidden"></canvas>
+                <canvas ref="detectCanvasEl" class="detect-canvas"></canvas>
                 <div v-if="!cameraActive" class="camera-idle">
                   <div class="upload-icon"><i class="fas fa-camera"></i></div>
                   <h3>Camera Ready</h3>
                   <p>Click below to start</p>
                 </div>
                 <div v-if="cameraActive" class="face-guide">
-                  <div class="face-oval"></div>
-                  <div class="guide-badge">
-                    <i class="fas fa-user"></i> Position face inside oval — then capture
+                  <div class="face-oval" :class="faceQuality.ovalColor"></div>
+                  <div class="guide-badge" :class="faceQuality.badgeClass">
+                    <i :class="faceQuality.icon"></i> {{ faceQuality.message }}
+                  </div>
+                </div>
+                <!-- Quality checks HUD -->
+                <div v-if="cameraActive" class="quality-hud">
+                  <div class="q-check" :class="{ pass: faceQuality.checks.faceFound, fail: !faceQuality.checks.faceFound }">
+                    <span class="q-dot"></span> Face
+                  </div>
+                  <div class="q-check" :class="{ pass: faceQuality.checks.faceSize, fail: !faceQuality.checks.faceSize }">
+                    <span class="q-dot"></span> Size
+                  </div>
+                  <div class="q-check" :class="{ pass: faceQuality.checks.centered, fail: !faceQuality.checks.centered }">
+                    <span class="q-dot"></span> Center
+                  </div>
+                  <div class="q-check" :class="{ pass: faceQuality.checks.lighting, fail: !faceQuality.checks.lighting }">
+                    <span class="q-dot"></span> Light
                   </div>
                 </div>
               </div>
@@ -89,7 +89,11 @@
                 </button>
                 <template v-if="cameraActive">
                   <button class="cam-btn flip" @click="flipCamera" title="Flip camera"><i class="fas fa-sync-alt"></i></button>
-                  <button class="cam-btn capture" @click="capturePhoto"><i class="fas fa-circle"></i></button>
+                  <button class="cam-btn capture" @click="capturePhoto"
+                    :disabled="!faceQuality.allPass"
+                    :title="faceQuality.allPass ? 'Capture' : faceQuality.message">
+                    <i class="fas fa-circle"></i>
+                  </button>
                   <button class="cam-btn stop" @click="stopCamera" title="Stop"><i class="fas fa-times"></i></button>
                 </template>
               </div>
@@ -112,27 +116,49 @@
         <!-- RIGHT: Info Panel -->
         <div class="info-col">
           <div class="info-card tips-card">
-            <div class="info-card-title"><i class="fas fa-lightbulb"></i> Photo Tips</div>
+            <div class="info-card-title">
+              <img src="/Bulb-1 Streamline Ultimate.png" class="tip-img-title" alt="" />
+              Photo Tips
+            </div>
             <div class="tip-list">
-              <div class="tip-item"><div class="tip-icon"><i class="fas fa-sun"></i></div><div><strong>Good Lighting</strong><p>Natural daylight gives the best results</p></div></div>
-              <div class="tip-item"><div class="tip-icon"><i class="fas fa-user"></i></div><div><strong>Neutral Expression</strong><p>Relax your face, look straight ahead</p></div></div>
-              <div class="tip-item"><div class="tip-icon"><i class="fas fa-glasses"></i></div><div><strong>Remove Glasses</strong><p>Frames can obscure skin analysis</p></div></div>
-              <div class="tip-item"><div class="tip-icon"><i class="fas fa-arrows-alt-h"></i></div><div><strong>Fill the Frame</strong><p>Your face should fill 60–80% of the photo</p></div></div>
-              <div class="tip-item"><div class="tip-icon"><i class="fas fa-tint-slash"></i></div><div><strong>No Heavy Makeup</strong><p>Clean skin yields more accurate results</p></div></div>
+              <div class="tip-item">
+                <img src="/Union.png" class="tip-img" alt="" />
+                <div class="tip-text"><strong>Good Brightness</strong><span>Natural daylight gives best results</span></div>
+              </div>
+              <div class="tip-item">
+                <img src="/Single-Man-Actions Streamline Ultimate.png" class="tip-img" alt="" />
+                <div class="tip-text"><strong>Natural Expression</strong><span>Relax your face, look straight ahead</span></div>
+              </div>
+              <div class="tip-item">
+                <img src="/glasses--vision-sunglasses-protection-spectacles-correction-sun-eye-glasses.png" class="tip-img" alt="" />
+                <div class="tip-text"><strong>Remove Glasses</strong><span>Frames can obscure skin analysis</span></div>
+              </div>
+              <div class="tip-item">
+                <img src="/Line-Arrow-Horizontal Streamline Flex.png" class="tip-img" alt="" />
+                <div class="tip-text"><strong>Fill the Frame</strong><span>Your face should fill 60–80% of the photo</span></div>
+              </div>
+              <div class="tip-item">
+                <img src="/Water-Drop Streamline Core-Remix.png" class="tip-img" alt="" />
+                <div class="tip-text"><strong>No Heavy Makeup</strong><span>Clean skin yields more accurate results</span></div>
+              </div>
             </div>
           </div>
 
           <div class="info-card concerns-card">
-            <div class="info-card-title"><i class="fas fa-clipboard-check"></i> What We Analyze</div>
-            <div class="concern-chips">
-              <span v-for="c in analyzedConcerns" :key="c.type">
-                <i :class="concernIcons[c.type] || 'fas fa-circle'"></i> {{ c.label }}
-              </span>
+            <div class="info-card-title">
+              <img src="/Check-Circle Streamline Core-Remix.png" class="tip-img-title" alt="" />
+              What We Analyze
+            </div>
+            <div class="concern-grid">
+              <span>Wrinkles</span><span>Pores</span><span>Texture</span>
+              <span>Acne</span><span>Dark Circles</span><span></span>
+              <span>Oiliness</span><span>Radiance</span><span></span>
+              <span>Firmness</span><span>Moisture</span><span>Redness</span>
             </div>
           </div>
         </div>
 
-      </div><!-- /two-col -->
+      </div><!-- /three-col -->
     </template>
 
     <!-- ═══════════════════ SCANNING STATE ═══════════════════ -->
@@ -252,12 +278,40 @@
       </div>
 
       <div class="sm-body">
-        <p class="sm-summary-text">{{ aiSummary }}</p>
+        <!-- Overall Score -->
+        <div class="sm-score-row">
+          <div class="sm-score-circle" :style="{ background: `conic-gradient(${overallScoreColor} ${overallScore}%, #e5eaf3 0%)` }">
+            <div class="sm-score-inner">
+              <span class="sm-score-num">{{ overallScore }}</span>
+              <span class="sm-score-label">{{ overallScoreLabel }}</span>
+            </div>
+          </div>
+          <div class="sm-score-info">
+            <p class="sm-summary-text">{{ aiSummary }}</p>
+          </div>
+        </div>
+
+        <!-- Detailed Results -->
+        <div class="sm-results">
+          <div class="sm-results-title">Detailed Results</div>
+          <div class="sm-results-grid">
+            <div v-for="item in result" :key="item.type" class="sm-result-row">
+              <span class="sm-result-name">{{ CONCERN_LABELS[item.type] || item.type }}</span>
+              <div class="sm-result-bar-bg">
+                <div class="sm-result-bar-fill" :style="{ width: item.ui_score + '%', background: scoreLabel(item.ui_score).color }"></div>
+              </div>
+              <span class="sm-result-score" :style="{ color: scoreLabel(item.ui_score).color }">{{ item.ui_score }}</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="sm-footer">
         <button class="sm-dismiss" @click="showSummaryModal = false">
           <i class="fas fa-times"></i> Dismiss
+        </button>
+        <button class="sm-download-btn" @click="downloadReport">
+          <i class="fas fa-download"></i> Download PDF
         </button>
         <button class="sm-talk-btn" @click="confirmDermatologist">
           <i class="fas fa-phone-alt"></i> Talk to Dermatologist
@@ -287,6 +341,8 @@
 
 <script setup>
 import { ref, computed, onBeforeUnmount } from 'vue'
+import { FaceDetector, FilesetResolver } from '@mediapipe/tasks-vision'
+import { jsPDF } from 'jspdf'
 import { analyzeSkin, scoreLabel, CONCERN_LABELS } from '../services/skinAnalysis.js'
 
 const emit = defineEmits(['navigate', 'startDermCall'])
@@ -298,13 +354,156 @@ const analyzing    = ref(false)
 const result       = ref(null)
 const error        = ref('')
 
+// Face image ref
+const faceImgRef = ref(null)
+function onFaceImgError() {
+  if (faceImgRef.value) faceImgRef.value.style.display = 'none'
+}
+
 // Camera state
-const mode         = ref('upload')
-const videoEl      = ref(null)
-const canvasEl     = ref(null)
-const cameraActive = ref(false)
-const facingMode   = ref('user')
-let   stream       = null
+const mode            = ref('upload')
+const videoEl         = ref(null)
+const canvasEl        = ref(null)
+const detectCanvasEl  = ref(null)
+const cameraActive    = ref(false)
+const facingMode      = ref('user')
+let   stream          = null
+
+// Face detection
+let faceDetector      = null
+let detectionLoop     = null
+let lastDetectionTime = 0
+const DETECTION_INTERVAL = 500 // run every 500ms instead of every frame (~2fps)
+
+const faceQuality = ref({
+  checks: { faceFound: false, faceSize: false, centered: false, lighting: false },
+  allPass: false,
+  message: 'Position your face in the oval',
+  icon: 'fas fa-user',
+  ovalColor: '',
+  badgeClass: '',
+})
+
+async function initFaceDetector() {
+  try {
+    const vision = await FilesetResolver.forVisionTasks(
+      'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm'
+    )
+    faceDetector = await FaceDetector.createFromOptions(vision, {
+      baseOptions: {
+        modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite',
+        delegate: 'GPU'
+      },
+      runningMode: 'VIDEO',
+      minDetectionConfidence: 0.5,
+    })
+  } catch (e) {
+    console.warn('[FaceDetector] init failed:', e)
+  }
+}
+
+function analyzeLighting(video) {
+  try {
+    const c = document.createElement('canvas')
+    c.width = 128; c.height = 128
+    const ctx = c.getContext('2d')
+    ctx.drawImage(video, 0, 0, 128, 128)
+    const data = ctx.getImageData(0, 0, 128, 128).data
+    const total = data.length / 4
+
+    let sum = 0, darkPixels = 0, brightPixels = 0
+    for (let i = 0; i < data.length; i += 4) {
+      const lum = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2]
+      sum += lum
+      if (lum < 60)  darkPixels++
+      if (lum > 230) brightPixels++
+    }
+
+    const avg = sum / total
+    const darkRatio   = darkPixels / total    // % of very dark pixels
+    const brightRatio = brightPixels / total  // % of very bright pixels
+
+    return { avg, darkRatio, brightRatio }
+  } catch { return { avg: 128, darkRatio: 0, brightRatio: 0 } }
+}
+
+function checkLighting(video) {
+  const { avg, darkRatio, brightRatio } = analyzeLighting(video)
+  // Fail if average too low OR too many dark pixels (>40% of frame is very dark)
+  if (avg < 85 || darkRatio > 0.40) return false
+  if (avg > 215 || brightRatio > 0.35) return false
+  return true
+}
+
+function getLightingMessage(video) {
+  const { avg, darkRatio, brightRatio } = analyzeLighting(video)
+  if (avg < 85 || darkRatio > 0.40) return 'Too dark — move to brighter light'
+  if (avg > 215 || brightRatio > 0.35) return 'Too bright — avoid direct sunlight'
+  return null
+}
+
+function runDetectionLoop() {
+  if (!faceDetector || !videoEl.value || !cameraActive.value) return
+
+  const now = performance.now()
+  if (now - lastDetectionTime < DETECTION_INTERVAL) {
+    detectionLoop = requestAnimationFrame(runDetectionLoop)
+    return
+  }
+  lastDetectionTime = now
+
+  const video = videoEl.value
+  if (video.readyState < 2) { detectionLoop = requestAnimationFrame(runDetectionLoop); return }
+
+  const result = faceDetector.detectForVideo(video, performance.now())
+  const vW = video.videoWidth
+  const vH = video.videoHeight
+  const detections = result.detections || []
+
+  const faceFound = detections.length === 1
+  let faceSize = false, centered = false
+
+  if (faceFound) {
+    const bb = detections[0].boundingBox
+    const faceArea = (bb.width * bb.height) / (vW * vH)
+    faceSize = faceArea > 0.08 && faceArea < 0.75
+    const cx = (bb.originX + bb.width / 2) / vW
+    const cy = (bb.originY + bb.height / 2) / vH
+    centered = cx > 0.25 && cx < 0.75 && cy > 0.2 && cy < 0.8
+  }
+
+  const lighting = checkLighting(video)
+  const allPass = faceFound && faceSize && centered && lighting
+
+  let message = 'Position your face in the oval'
+  let icon = 'fas fa-user'
+  const lightMsg = getLightingMessage(video)
+  if (!lighting)       { message = lightMsg || 'Adjust lighting'; icon = 'fas fa-sun' }
+  else if (!faceFound) { message = 'No face detected — look at camera'; icon = 'fas fa-user-slash' }
+  else if (!faceSize)  { message = (detections[0]?.boundingBox?.width / vW) < 0.3 ? 'Move closer to camera' : 'Move back a little'; icon = 'fas fa-expand-arrows-alt' }
+  else if (!centered)  { message = 'Center your face in the oval'; icon = 'fas fa-dot-circle' }
+  else                 { message = 'Perfect! Tap capture'; icon = 'fas fa-check-circle' }
+
+  faceQuality.value = {
+    checks: { faceFound, faceSize, centered, lighting },
+    allPass,
+    message,
+    icon,
+    ovalColor: allPass ? 'oval-green' : faceFound ? 'oval-yellow' : 'oval-red',
+    badgeClass: allPass ? 'badge-green' : faceFound ? 'badge-yellow' : '',
+  }
+
+  detectionLoop = requestAnimationFrame(runDetectionLoop)
+}
+
+function stopDetectionLoop() {
+  if (detectionLoop) { cancelAnimationFrame(detectionLoop); detectionLoop = null }
+  faceQuality.value = {
+    checks: { faceFound: false, faceSize: false, centered: false, lighting: false },
+    allPass: false, message: 'Position your face in the oval',
+    icon: 'fas fa-user', ovalColor: '', badgeClass: '',
+  }
+}
 
 const analyzedConcerns = [
   { type: 'wrinkle',        label: 'Wrinkles' },
@@ -340,12 +539,18 @@ async function startCamera() {
       videoEl.value.onloadedmetadata = resolve
     })
     await videoEl.value.play().catch(() => {})
+    // init face detector then start loop
+    if (!faceDetector) await initFaceDetector()
+    // small delay so video frame is ready
+    await new Promise(r => setTimeout(r, 300))
+    runDetectionLoop()
   } catch (e) {
     error.value = 'Camera access denied. Please allow camera permission in your browser.'
   }
 }
 
 function stopCamera() {
+  stopDetectionLoop()
   if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null }
   cameraActive.value = false
 }
@@ -358,6 +563,13 @@ async function flipCamera() {
 
 function capturePhoto() {
   if (!videoEl.value || !canvasEl.value) return
+
+  // Hard block — double check before capture
+  if (!faceQuality.value.allPass) {
+    error.value = faceQuality.value.message
+    return
+  }
+
   const video  = videoEl.value
   const canvas = canvasEl.value
   const vW = video.videoWidth
@@ -410,7 +622,7 @@ function retakePhoto() {
   startCamera()
 }
 
-onBeforeUnmount(() => stopCamera())
+onBeforeUnmount(() => { stopDetectionLoop(); stopCamera() })
 
 const concernIcons = {
   wrinkle:            'fas fa-water',
@@ -448,6 +660,9 @@ const overallScore = computed(() => {
   if (!valid.length) return 0
   return Math.round(valid.reduce((s, i) => s + i.ui_score, 0) / valid.length)
 })
+
+const overallScoreColor = computed(() => scoreLabel(overallScore.value).color)
+const overallScoreLabel = computed(() => scoreLabel(overallScore.value).label)
 
 const ringStyle = computed(() => {
   const score = overallScore.value
@@ -513,12 +728,19 @@ async function runAnalysis() {
     result.value = await analyzeSkin(selectedFile.value)
   } catch (e) {
     const msg = e.message || ''
-    if (msg.includes('below_min_image_size') || msg.includes('image_size')) {
-      error.value = 'Image resolution too low. Please use a clearer photo (min 480px).'
-    } else if (msg.includes('face_too_small') || msg.includes('no_face')) {
-      error.value = 'Face too small. Use a close-up selfie where your face fills 60–80% of the frame.'
-    } else {
-      error.value = msg || 'Analysis failed. Please try again.'
+    // API quality errors — auto retake in camera mode
+    const isQualityError = msg.includes('too dark') || msg.includes('too bright')
+      || msg.includes('no face') || msg.includes('face too small')
+      || msg.includes('multiple faces') || msg.includes('blurry') || msg.includes('angle')
+
+    error.value = msg || 'Analysis failed. Please try again.'
+
+    // If camera mode was used and it's a quality error — reset to retake
+    if (isQualityError && mode.value === 'camera') {
+      preview.value = ''
+      selectedFile.value = null
+      await new Promise(r => setTimeout(r, 200))
+      await startCamera()
     }
   } finally {
     analyzing.value = false
@@ -612,13 +834,101 @@ function confirmDermatologist() {
   showDermConfirm.value  = true
 }
 
+function generatePDF() {
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' })
+  const date = new Date().toLocaleDateString('en-PK', { dateStyle: 'long' })
+  const summary = aiSummary.value || buildFallbackSummary()
+
+  // Header
+  doc.setFillColor(15, 42, 94)
+  doc.rect(0, 0, 210, 40, 'F')
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(20)
+  doc.setFont('helvetica', 'bold')
+  doc.text('Skin Analysis Report', 20, 18)
+  doc.setFontSize(10)
+  doc.setFont('helvetica', 'normal')
+  doc.text(`Generated: ${date}  |  Powered by PerfectCorp AI`, 20, 28)
+  doc.text('For discussion with your dermatologist only', 20, 35)
+
+  // Overall score
+  const scores = (result.value || []).map(r => r.ui_score)
+  const overall = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0
+  const { label: overallRating } = scoreLabel(overall)
+
+  doc.setTextColor(15, 42, 94)
+  doc.setFontSize(14)
+  doc.setFont('helvetica', 'bold')
+  doc.text(`Overall Score: ${overall}/100 — ${overallRating}`, 20, 55)
+
+  // Summary
+  doc.setFontSize(11)
+  doc.setFont('helvetica', 'bold')
+  doc.text('AI Summary', 20, 67)
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(10)
+  doc.setTextColor(55, 65, 81)
+  const lines = doc.splitTextToSize(summary, 170)
+  doc.text(lines, 20, 74)
+
+  // Results breakdown
+  let y = 74 + lines.length * 5 + 8
+  doc.setFontSize(11)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(15, 42, 94)
+  doc.text('Detailed Results', 20, y)
+  y += 7
+
+  ;(result.value || []).forEach(item => {
+    if (y > 270) { doc.addPage(); y = 20 }
+    const name = CONCERN_LABELS[item.type] || item.type
+    const { label, color } = scoreLabel(item.ui_score)
+    const [r2, g2, b2] = color === '#22c55e' ? [34,197,94] : color === '#84cc16' ? [132,204,22] : color === '#f59e0b' ? [245,158,11] : [239,68,68]
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(9)
+    doc.setTextColor(55, 65, 81)
+    doc.text(name, 20, y)
+    // bar bg
+    doc.setFillColor(241, 245, 249)
+    doc.roundedRect(65, y - 4, 100, 5, 2, 2, 'F')
+    // bar fill
+    doc.setFillColor(r2, g2, b2)
+    doc.roundedRect(65, y - 4, item.ui_score, 5, 2, 2, 'F')
+    // score
+    doc.setTextColor(r2, g2, b2)
+    doc.setFont('helvetica', 'bold')
+    doc.text(`${item.ui_score} — ${label}`, 170, y)
+    y += 8
+  })
+
+  // Disclaimer
+  y += 4
+  doc.setFontSize(8)
+  doc.setFont('helvetica', 'italic')
+  doc.setTextColor(150, 150, 150)
+  doc.text('This report is AI-generated and not a medical diagnosis. Please consult a licensed dermatologist.', 20, y)
+
+  return doc
+}
+
+function downloadReport() {
+  const doc = generatePDF()
+  doc.save('skin-analysis-report.pdf')
+}
+
 function startDermatologistCall() {
   showDermConfirm.value = false
   const summaryToSend = aiSummary.value || buildFallbackSummary()
-  console.log('[SkinFlow] saving to localStorage — summary:', summaryToSend.slice(0, 80))
   localStorage.setItem('skinAnalysisSummary', summaryToSend)
+
+  // Generate PDF and store in localStorage for doctor chat
+  const doc = generatePDF()
+  const date = new Date().toLocaleDateString('en-PK', { dateStyle: 'long' })
+  const pdfBase64 = doc.output('datauristring')
+  localStorage.setItem('skinAnalysisPDF', pdfBase64)
+  localStorage.setItem('skinAnalysisPDFDate', date)
+
   localStorage.setItem('autoStartDoctor', 'dr-grace')
-  console.log('[SkinFlow] localStorage set, navigating to doctors...')
   emit('navigate', 'doctors')
 }
 </script>
@@ -639,51 +949,42 @@ function startDermatologistCall() {
 .hero-banner {
   background: linear-gradient(135deg, #0f2a5e 0%, #1a3a8f 40%, #1a73e8 100%);
   border-radius: 20px;
-  padding: 36px 40px;
+  padding: 32px 36px;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 32px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
   color: white;
-  flex-wrap: wrap;
+  margin: 0px 150px;
 }
-.hero-left { flex: 1; min-width: 280px; }
 .eyebrow {
-  font-size: 0.78rem; font-weight: 600; letter-spacing: 1.5px;
-  text-transform: uppercase; opacity: 0.8; display: block; margin-bottom: 10px;
+  font-size: 0.85rem; font-weight: 500; opacity: 0.85; display: block;
 }
-.hero-left h1 { margin: 0 0 10px; font-size: 2.2rem; font-weight: 800; line-height: 1.15; }
-.hero-left p  { margin: 0 0 24px; opacity: 0.85; font-size: 1rem; max-width: 480px; }
-
-.hero-stats { display: flex; gap: 28px; flex-wrap: wrap; }
-.hstat strong { display: block; font-size: 1.6rem; font-weight: 800; line-height: 1; }
-.hstat span   { font-size: 0.78rem; opacity: 0.75; }
-
-.hero-right { display: flex; align-items: center; }
-.badge-group { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
-.badge-group span {
-  background: rgba(255,255,255,0.12);
-  border: 1px solid rgba(255,255,255,0.22);
-  border-radius: 20px; padding: 7px 16px;
-  font-size: 0.82rem; display: flex; align-items: center; gap: 7px;
-  backdrop-filter: blur(4px);
-}
+.hero-banner h1 { margin: 0; font-size: 2rem; font-weight: 800; line-height: 1.15; }
+.hero-banner p  { margin: 0; opacity: 0.85; font-size: 0.95rem; }
 
 /* ══════════════════════════════════════════════════════
-   TWO-COLUMN LAYOUT
+   THREE-COLUMN LAYOUT
 ══════════════════════════════════════════════════════ */
-.two-col {
+.three-col {
   display: grid;
-  grid-template-columns: 1fr 380px;
-  gap: 20px;
+  grid-template-columns: 336px 1fr 270px;
+  gap: 60px;
   align-items: start;
+  margin-right: 75px;
+  margin-top:30px;
+
 }
+
+/* ── Face image column ── */
+.face-col { display: flex; flex-direction: column; }
+.face-img { width: 100%; display: block; object-fit: contain; border-radius: 16px; }
 
 /* ── Capture column ── */
 .capture-col {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
 /* ── Info column ── */
@@ -695,79 +996,83 @@ function startDermatologistCall() {
 
 .info-card {
   background: white;
-  border: 1px solid #e5eaf3;
+  border: 1px solid #d1d5db;
   border-radius: 16px;
-  padding: 20px 22px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+  padding: 18px 16px;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.06);
 }
 .info-card-title {
-  font-size: 0.88rem; font-weight: 700; color: #1a2540;
-  text-transform: uppercase; letter-spacing: 0.06em;
-  margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
+  font-size: 1rem; font-weight: 900; color: #111827;
+  margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
 }
-.info-card-title i { color: #1a73e8; }
+.info-card-title i { color: #374151; font-size: 1rem; }
 
-.tip-list { display: flex; flex-direction: column; gap: 14px; }
-.tip-item { display: flex; align-items: flex-start; gap: 12px; }
-.tip-icon {
-  width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0;
-  background: linear-gradient(135deg, #e8f0fe, #c2d7ff);
-  display: grid; place-items: center;
-  font-size: 0.9rem; color: #1a73e8;
+.tip-list { display: flex; flex-direction: column; gap: 10px; }
+.tip-item { display: flex; align-items: flex-start; gap: 10px; }
+.tip-icon-inline {
+  font-size: 0.9rem; color: #374151;
+  flex-shrink: 0; width: 18px;
+  text-align: center; margin-top: 3px;
 }
-.tip-item strong { font-size: 0.88rem; color: #1a2540; display: block; }
-.tip-item p { margin: 2px 0 0; font-size: 0.8rem; color: #6b7280; }
+.tip-img {
+  width: 16px; height: 16px;
+  flex-shrink: 0; object-fit: contain;
+  margin-top: 2px;
+}
+.tip-img-title {
+  width: 18px; height: 18px;
+  flex-shrink: 0; object-fit: contain;
+}
+.tip-text { display: flex; flex-direction: column; }
+.tip-text strong { font-size: 0.84rem; color: #111827; font-weight: 800; line-height: 1.3; }
+.tip-text span { font-size: 0.69rem; color: #6b7280; line-height: 1.3; margin-top: 1px; }
 
-.concern-chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.concern-chips span {
-  background: #f0f7ff; border: 1px solid #c2d7ff;
-  border-radius: 20px; padding: 5px 12px;
-  font-size: 0.8rem; color: #1a73e8; font-weight: 600;
-  display: flex; align-items: center; gap: 5px;
+.concern-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px 2px;
+  align-items: start;
 }
+.concern-grid span { font-size: 0.8rem; color: #111827; line-height: 1.35; font-weight: 400; }
 
 /* ── Mode Tabs ── */
 .mode-tabs {
-  display: flex; background: #f1f5f9;
-  border-radius: 14px; padding: 4px; gap: 4px;
+  display: flex; background: #e5e7eb;
+  border-radius: 50px;  gap: 4px;
+  border: 1.5px solid #1e3a8a;
 }
 .mode-tab {
   flex: 1; padding: 11px 20px;
-  border: none; border-radius: 10px;
+  border: none; border-radius: 50px;
   font-size: 0.9rem; font-weight: 600;
   cursor: pointer; color: #6b7280;
   background: transparent;
   display: flex; align-items: center; justify-content: center; gap: 8px;
   transition: all 0.2s;
 }
-.mode-tab.active { background: white; color: #1a73e8; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+.mode-tab.active { background: #1e3a8a; color: white; }
 .mode-tab:not(.active):hover { color: #374151; }
 
 /* ── Upload Card ── */
 .upload-card {
-  border: 2px dashed #c7d9f5; border-radius: 18px;
-  background: #f8fbff; cursor: pointer; transition: all 0.25s;
-  min-height: 260px; display: flex; align-items: center; justify-content: center;
-  overflow: hidden;
+  border: 1.5px solid #111827; border-radius: 16px;
+  background: #fff; cursor: pointer; transition: all 0.25s;
+  min-height: 350px; display: flex; align-items: center; justify-content: center;
+  overflow: hidden; width: 100%;
 }
-.upload-card:hover { border-color: #1a73e8; background: #f0f7ff; }
+.upload-card:hover { border-color: #1a73e8; background: #f8fbff; }
 .hidden { display: none; }
 
-.upload-empty { text-align: center; padding: 40px 24px; }
-.upload-icon {
-  width: 68px; height: 68px; border-radius: 50%;
-  background: linear-gradient(135deg, #e8f0fe, #c2d7ff);
-  display: grid; place-items: center; margin: 0 auto 16px;
-  font-size: 1.7rem; color: #1a73e8;
+.upload-empty { text-align: center; padding: 48px 24px; width: 100%; }
+.upload-placeholder-img {
+  width: 50px; height: 50px;
+  object-fit: contain;
+  margin: 0 auto 14px;
+  display: block;
+  opacity: 0.9;
 }
-.upload-empty h3 { margin: 0 0 6px; font-size: 1.1rem; color: #1a2540; }
-.upload-empty p  { margin: 0 0 16px; color: #6b7280; font-size: 0.9rem; }
-.upload-reqs { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
-.upload-reqs span {
-  font-size: 0.8rem; color: #1a73e8; background: #eaf3ff;
-  border-radius: 20px; padding: 4px 12px;
-  display: flex; align-items: center; gap: 5px;
-}
+.upload-empty h3 { margin: 0 0 6px; font-size: 1.1rem; font-weight: 700; color: #1a2540; }
+.upload-empty p  { margin: 0; color: #6b7280; font-size: 0.86rem; }
 
 .upload-preview { position: relative; width: 100%; }
 .upload-preview img { width: 100%; max-height: 360px; object-fit: cover; display: block; }
@@ -808,22 +1113,62 @@ function startDermatologistCall() {
   align-items: center; justify-content: center; pointer-events: none;
 }
 .face-oval {
-  /* Height-based so oval never overflows the landscape camera feed */
-  height: 78%;
-  max-height: 300px;
-  aspect-ratio: 3 / 4;
+  height: 78%; max-height: 300px; aspect-ratio: 3 / 4;
   border: 3px dashed rgba(255,255,255,0.7); border-radius: 50%;
   box-shadow: 0 0 0 9999px rgba(0,0,0,0.35);
-  animation: oval-pulse 2.5s ease-in-out infinite;
+  transition: border-color 0.3s, box-shadow 0.3s;
 }
-@keyframes oval-pulse {
-  0%, 100% { border-color: rgba(255,255,255,0.5); }
-  50%       { border-color: rgba(26,115,232,0.95); }
+.face-oval.oval-green {
+  border: 3px solid #22c55e;
+  box-shadow: 0 0 0 9999px rgba(0,0,0,0.25), 0 0 20px rgba(34,197,94,0.6);
+}
+.face-oval.oval-yellow {
+  border: 3px dashed #f59e0b;
+  box-shadow: 0 0 0 9999px rgba(0,0,0,0.35);
+}
+.face-oval.oval-red {
+  border: 3px dashed #ef4444;
+  box-shadow: 0 0 0 9999px rgba(0,0,0,0.45);
 }
 .guide-badge {
   margin-top: 16px; font-size: 0.82rem; font-weight: 600;
   padding: 6px 14px; border-radius: 20px; display: flex; align-items: center; gap: 7px;
   background: rgba(0,0,0,0.55); color: white; backdrop-filter: blur(6px);
+  transition: background 0.3s;
+}
+.guide-badge.badge-green { background: rgba(34,197,94,0.75); }
+.guide-badge.badge-yellow { background: rgba(245,158,11,0.75); }
+
+/* Quality HUD */
+.quality-hud {
+  position: absolute;
+  top: 12px; right: 12px;
+  display: flex; flex-direction: column; gap: 6px;
+  pointer-events: none;
+}
+.q-check {
+  font-size: 0.72rem; font-weight: 600;
+  padding: 5px 10px 5px 8px;
+  border-radius: 8px;
+  display: flex; align-items: center; gap: 7px;
+  background: rgba(0,0,0,0.45);
+  color: rgba(255,255,255,0.45);
+  backdrop-filter: blur(6px);
+  transition: all 0.25s;
+}
+.q-check.pass { background: rgba(0,0,0,0.45); color: #4ade80; }
+.q-check.fail { background: rgba(0,0,0,0.45); color: rgba(255,255,255,0.35); }
+.q-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: currentColor; flex-shrink: 0;
+}
+
+/* detect canvas hidden */
+.detect-canvas { display: none; }
+
+/* Capture button disabled state */
+.cam-btn.capture:disabled {
+  opacity: 0.4; cursor: not-allowed; transform: none;
 }
 
 .camera-controls {
@@ -1044,99 +1389,104 @@ function startDermatologistCall() {
    RESPONSIVE
 ══════════════════════════════════════════════════════ */
 
-/* ── Large tablet (≤1024px): narrow the info column ── */
-@media (max-width: 1024px) {
-  .two-col { grid-template-columns: 1fr 300px; }
+/* ── Large tablet (≤1100px): hide face col ── */
+@media (max-width: 1100px) {
+  .three-col { grid-template-columns: 1fr 210px; gap: 18px; }
+  .face-col  { display: none; }
   .cards-grid { grid-template-columns: repeat(2, 1fr); }
-  .hero-left h1 { font-size: 1.9rem; }
 }
 
-/* ── Tablet / small laptop (≤860px): stack two-col ── */
+/* ── Tablet (≤860px): single column ── */
 @media (max-width: 860px) {
-  .two-col { grid-template-columns: 1fr; }
-  .info-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .hero-banner { padding: 28px 26px; gap: 20px; }
-  .hero-left h1 { font-size: 1.7rem; }
-  .hero-right { width: 100%; }
-  .badge-group { justify-content: flex-start; }
+  .three-col { grid-template-columns: 1fr; }
+  .face-col  { display: none; }
+  .info-col  { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .hero-banner { padding: 22px 20px; }
+  .hero-banner h1 { font-size: 1.7rem; }
   .scan-inner { grid-template-columns: 1fr; text-align: center; }
-  .scan-frame { max-width: 300px; margin: 0 auto; }
-  .scan-dots { justify-content: center; }
+  .scan-frame { max-width: 280px; margin: 0 auto; }
+  .scan-dots  { justify-content: center; }
   .scan-concerns { justify-content: center; }
-  .report-header { padding: 22px 24px; gap: 18px; }
+  .report-header { padding: 20px 22px; gap: 16px; }
   .rh-info h2 { font-size: 1.2rem; }
+  .cards-grid { grid-template-columns: repeat(2, 1fr); }
+  /* Summary modal */
+  .summary-modal { width: 95vw; max-width: 95vw; }
+  .sm-score-row { flex-direction: column; align-items: center; }
+  .sm-footer { flex-wrap: wrap; }
+  .sm-result-row { grid-template-columns: 90px 1fr 32px; }
 }
 
-/* ── Mobile (≤640px): phone-first ── */
+/* ── Mobile (≤640px) ── */
 @media (max-width: 640px) {
-  .skin-wrap { gap: 14px; }
-
-  /* Hero */
-  .hero-banner { padding: 20px 18px; border-radius: 16px; flex-direction: column; gap: 16px; }
-  .hero-left h1 { font-size: 1.45rem; }
-  .hero-left p  { font-size: 0.88rem; margin-bottom: 16px; }
-  .hero-stats { gap: 16px; }
-  .hstat strong { font-size: 1.3rem; }
-  .hstat span   { font-size: 0.72rem; }
-  .hero-right { width: 100%; }
-  .badge-group { gap: 7px; }
-  .badge-group span { font-size: 0.74rem; padding: 5px 11px; }
-
-  /* Mode tabs */
-  .mode-tabs { border-radius: 12px; }
-  .mode-tab  { font-size: 0.82rem; padding: 10px 12px; }
-
-  /* Info col: stack vertically on phones */
-  .info-col { grid-template-columns: 1fr; }
-
-  /* Cards */
-  .cards-grid { grid-template-columns: 1fr; gap: 10px; }
-  .metric-card { padding: 13px 14px; border-radius: 13px; }
-  .metric-score { font-size: 1.3rem; }
-
-  /* Report header: stack */
-  .report-header {
-    flex-direction: column; align-items: flex-start;
-    padding: 18px 18px; border-radius: 16px; gap: 16px;
-  }
-  .rh-left { gap: 14px; }
-  .report-avatar { width: 68px; height: 68px; border-radius: 12px; }
-  .rh-info h2   { font-size: 1.1rem; }
-  .rh-meta      { gap: 10px; }
-  .rh-meta span { font-size: 0.76rem; }
-  .rh-score-wrap { flex-direction: row; align-items: center; width: 100%; }
-  .overall-ring { width: 80px; height: 80px; }
-  .ring-num     { font-size: 1.5rem; }
-  .new-scan-btn-header { width: 100%; justify-content: center; padding: 13px 18px; }
-
-  /* Section row: stack title + legend */
-  .section-row  { flex-direction: column; align-items: flex-start; gap: 8px; }
-  .legend       { gap: 10px; font-size: 0.75rem; }
-
-  /* Scan screen */
-  .scanning-screen { min-height: 360px; padding: 24px 0; }
-  .scan-inner  { gap: 24px; }
-  .scan-frame  { max-width: 260px; }
-  .scan-status p { font-size: 1.1rem; }
-  .scan-status span { font-size: 0.82rem; }
-
-  /* Camera */
-  .camera-feed { max-height: 300px; }
-  .camera-card { border-radius: 14px; }
-  .face-oval   { height: 72%; max-height: 240px; }
-
-  /* Upload */
-  .upload-card { min-height: 200px; border-radius: 14px; }
-  .upload-icon { width: 56px; height: 56px; font-size: 1.4rem; }
+  .skin-wrap { gap: 12px; padding: 0 12px; }
+  .hero-banner { padding: 18px 16px; border-radius: 14px; }
+  .hero-banner h1 { font-size: 1.4rem; }
+  .hero-banner p  { font-size: 0.85rem; }
+  .mode-tabs { border-radius: 50px; }
+  .mode-tab  { font-size: 0.8rem; padding: 9px 10px; }
+  .upload-card { min-height: 220px; border-radius: 14px; }
+  .upload-empty { padding: 32px 16px; }
   .upload-empty h3 { font-size: 1rem; }
   .upload-empty p  { font-size: 0.82rem; }
-  .upload-reqs span { font-size: 0.74rem; }
+  .info-col { grid-template-columns: 1fr; }
+  .analyze-btn { padding: 13px 20px; font-size: 0.92rem; }
+  .scanning-screen { min-height: 320px; padding: 20px 0; }
+  .scan-frame { max-width: 240px; }
+  .scan-status p { font-size: 1.1rem; }
+  .scan-status span { font-size: 0.8rem; }
+  .camera-feed { max-height: 280px; }
+  .face-oval   { height: 70%; max-height: 220px; }
+  .cards-grid { grid-template-columns: 1fr; gap: 10px; }
+  .metric-card { padding: 12px 14px; }
+  .metric-score { font-size: 1.25rem; }
+  .report-header { flex-direction: column; align-items: flex-start; padding: 16px; border-radius: 14px; gap: 14px; }
+  .rh-left { gap: 12px; }
+  .report-avatar { width: 64px; height: 64px; }
+  .rh-info h2 { font-size: 1.05rem; }
+  .rh-meta span { font-size: 0.74rem; }
+  .overall-ring { width: 76px; height: 76px; }
+  .ring-num { font-size: 1.4rem; }
+  .new-scan-btn-header { width: 100%; justify-content: center; }
+  .section-row { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .legend { gap: 8px; font-size: 0.74rem; }
+  .disclaimer { font-size: 0.76rem; padding: 12px 14px; }
+  .summarize-btn { padding: 14px 24px; font-size: 0.95rem; }
+  /* Quality HUD — smaller on mobile */
+  .quality-hud { top: 8px; right: 8px; gap: 4px; }
+  .q-check { font-size: 0.65rem; padding: 4px 7px; }
+  .q-dot { width: 6px; height: 6px; }
+  /* Summary modal */
+  .summary-modal { width: 98vw; border-radius: 16px; }
+  .sm-header { padding: 16px 18px; gap: 10px; }
+  .sm-header h3 { font-size: 0.95rem; }
+  .sm-body { padding: 14px 16px; max-height: 60vh; }
+  .sm-score-row { flex-direction: column; align-items: center; gap: 12px; }
+  .sm-score-circle { width: 76px; height: 76px; }
+  .sm-score-inner { width: 62px; height: 62px; }
+  .sm-score-num { font-size: 1.2rem; }
+  .sm-footer { padding: 12px 16px; flex-wrap: wrap; gap: 8px; }
+  .sm-dismiss, .sm-download-btn, .sm-talk-btn { flex: 1; font-size: 0.82rem; padding: 10px 12px; justify-content: center; }
+  .sm-result-row { grid-template-columns: 80px 1fr 28px; gap: 6px; }
+  .sm-result-name { font-size: 0.75rem; }
+  .sm-result-score { font-size: 0.75rem; }
+}
 
-  /* Analyze btn */
-  .analyze-btn { padding: 14px 24px; font-size: 0.95rem; border-radius: 12px; }
-
-  /* Disclaimer */
-  .disclaimer { font-size: 0.78rem; padding: 12px 14px; }
+/* ── Small phone (≤400px) ── */
+@media (max-width: 400px) {
+  .hero-banner { padding: 14px 12px; }
+  .hero-banner h1 { font-size: 1.2rem; }
+  .hero-banner p  { font-size: 0.8rem; }
+  .mode-tab { font-size: 0.76rem; padding: 8px 8px; }
+  .report-avatar { width: 54px; height: 54px; }
+  .rh-info h2 { font-size: 0.95rem; }
+  .overall-ring { width: 68px; height: 68px; }
+  .ring-num { font-size: 1.25rem; }
+  .metric-score { font-size: 1.1rem; }
+  .scan-frame { max-width: 210px; }
+  .sm-dismiss, .sm-download-btn { display: none; }
+  .sm-talk-btn { width: 100%; justify-content: center; }
+  .quality-hud { display: none; }
 }
 
 /* ══════════════════════════════════════════════════════
@@ -1202,13 +1552,56 @@ function startDermatologistCall() {
 .sm-close:hover { background: rgba(255,255,255,0.28); }
 
 .sm-body {
-  padding: 24px 26px;
+  padding: 20px 26px;
+  overflow-y: auto;
+  max-height: 65vh;
 }
+
+/* Score row */
+.sm-score-row {
+  display: flex; gap: 20px; align-items: flex-start; margin-bottom: 20px;
+}
+.sm-score-circle {
+  width: 90px; height: 90px; border-radius: 50%;
+  display: grid; place-items: center; flex-shrink: 0;
+  padding: 5px;
+}
+.sm-score-inner {
+  width: 74px; height: 74px; border-radius: 50%;
+  background: white; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+}
+.sm-score-num { font-size: 1.5rem; font-weight: 900; color: #1a2540; line-height: 1; }
+.sm-score-label { font-size: 0.62rem; font-weight: 700; color: #6b7280; margin-top: 2px; }
+.sm-score-info { flex: 1; }
+
 .sm-summary-text {
-  font-size: 1rem; line-height: 1.75; color: #1a2540; margin: 0;
+  font-size: 0.9rem; line-height: 1.65; color: #1a2540; margin: 0;
   background: #f8fbff; border: 1px solid #c2d7ff;
-  border-radius: 12px; padding: 18px 20px;
+  border-radius: 12px; padding: 14px 16px;
 }
+
+/* Detailed results */
+.sm-results { margin-top: 4px; }
+.sm-results-title {
+  font-size: 0.82rem; font-weight: 700; color: #6b7280;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  margin-bottom: 10px;
+}
+.sm-results-grid { display: flex; flex-direction: column; gap: 8px; }
+.sm-result-row {
+  display: grid; grid-template-columns: 110px 1fr 36px;
+  align-items: center; gap: 10px;
+}
+.sm-result-name { font-size: 0.82rem; color: #374151; font-weight: 500; }
+.sm-result-bar-bg {
+  background: #f1f5f9; border-radius: 99px; height: 7px; overflow: hidden;
+}
+.sm-result-bar-fill {
+  height: 100%; border-radius: 99px;
+  transition: width 0.8s cubic-bezier(0.4,0,0.2,1);
+}
+.sm-result-score { font-size: 0.82rem; font-weight: 700; text-align: right; }
 
 .sm-footer {
   padding: 16px 24px 22px;
@@ -1223,6 +1616,14 @@ function startDermatologistCall() {
   transition: background 0.2s;
 }
 .sm-dismiss:hover { background: #e2e8f0; }
+.sm-download-btn {
+  background: #f0fdf4; color: #16a34a;
+  border: 1px solid #bbf7d0; border-radius: 12px;
+  padding: 12px 20px; font-size: 0.9rem; font-weight: 600;
+  cursor: pointer; display: flex; align-items: center; gap: 8px;
+  transition: background 0.2s;
+}
+.sm-download-btn:hover { background: #dcfce7; }
 .sm-talk-btn {
   background: linear-gradient(135deg, #1a73e8, #0048a8);
   color: white; border: none; border-radius: 12px;

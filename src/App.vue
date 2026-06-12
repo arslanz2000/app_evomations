@@ -176,7 +176,7 @@
       <FooterBar
         v-if="currentView !== 'signup' && currentView !== 'login'"
         appName="AI Doctors"
-        company="Arslan"
+        company=""
         version="v1.0.0"
         status="operational"
         :links="[
