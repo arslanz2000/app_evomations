@@ -591,6 +591,8 @@ const filteredDoctors = computed(() => {
 
 const activeBubbleIdx = ref({ user: null, assistant: null });
 const pendingMessages = [];
+let skinSummaryPending = null; // sent after doctor finishes first greeting
+let skinSummaryTimer = null;
 
 function flushMessages() {
   if (!vapi) { console.warn('[SkinFlow] flushMessages: vapi not ready'); return; }
@@ -1306,15 +1308,10 @@ onMounted(() => {
       });
     }
 
-    // Send summary after doctor's first greeting is done
+    // Store summary separately — sent after doctor finishes first greeting
     if (skinSummary) {
-      window.__pendingSkinSummary = `I have my skin analysis results. Here is my report:\n\n${skinSummary}\n\nPlease review and guide me.`;
-    }
-
-    if (!canSendControls.value) {
-      canSendControls.value = true;
-      flushControls();
-      flushMessages();
+      skinSummaryPending = `I have my skin analysis results. Here is my report:\n\n${skinSummary}\n\nPlease review and guide me.`;
+      console.log('[SkinFlow] skin summary stored, will send after doctor greeting');
     }
   });
 
@@ -1331,18 +1328,21 @@ onMounted(() => {
       if (final && text) {
         finalTranscript.value.push({ role, text });
 
-        // After doctor's first greeting — send skin summary
-        if (role === 'assistant' && window.__pendingSkinSummary) {
-          const msg = window.__pendingSkinSummary;
-          window.__pendingSkinSummary = null;
-          setTimeout(() => {
+        // Doctor greeting khatam hone ka wait karo (silence detect via debounce)
+        if (role === 'assistant' && skinSummaryPending) {
+          if (skinSummaryTimer) clearTimeout(skinSummaryTimer);
+          skinSummaryTimer = setTimeout(() => {
+            skinSummaryTimer = null;
+            if (!skinSummaryPending) return;
+            const msg = skinSummaryPending;
+            skinSummaryPending = null;
             try {
-              vapi.send({ type: "add-message", message: { role: "user", content: msg } });
-              console.log('[SkinFlow] summary sent after doctor greeting ✅');
-            } catch(e) {
+              vapi.send({ type: 'add-message', message: { role: 'user', content: msg } });
+              console.log('[SkinFlow] summary sent after doctor silence ✅');
+            } catch (e) {
               console.warn('[SkinFlow] summary send failed:', e?.message);
             }
-          }, 500);
+          }, 3000); // 3 sec silence = greeting complete
         }
       }
     }
@@ -1366,7 +1366,9 @@ onMounted(() => {
   });
 
   vapi.on("call-end", () => {
-    window.__pendingSkinSummary = null;
+    pendingMessages.length = 0;
+    skinSummaryPending = null;
+    if (skinSummaryTimer) { clearTimeout(skinSummaryTimer); skinSummaryTimer = null; }
     handleCallEnd();
   });
   vapi.on("error", (e) => {
