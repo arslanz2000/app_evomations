@@ -588,7 +588,7 @@ const doctors = ref([
 
 const OPENAI_MODEL = "gpt-4o-mini";
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
-const BACKEND_API_KEY = import.meta.env.VITE_API_BASE_URL;
+const BACKEND_API_KEY = import.meta.env.VITE_API_BASE_URL || "https://dashboard.evomations.com/api";
 
 const callActive = ref(false);
 const activeDoctorId = ref(null);
