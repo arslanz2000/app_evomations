@@ -32,12 +32,13 @@ const password = ref("");
 
 const handleLogin = async () => {
   try {
-    const response = await login(email.value, password.value);
+    const user = await login(email.value, password.value);
 
-    localStorage.setItem("authToken", response.token);
     localStorage.setItem("user", JSON.stringify({
-      name: response.name || "User",
-      email: response.email || email.value,
+      id: user.id,
+      name: user.name || "User",
+      email: user.email || email.value,
+      gender: user.gender || null,
     }));
 
     localStorage.setItem("currentView", "doctors");

@@ -5,6 +5,12 @@
       
       <input v-model="name" placeholder="Full Name" required />
       <input v-model="email" type="email" placeholder="Email Address" required />
+      <select v-model="gender" required>
+        <option value="" disabled>Select Gender</option>
+        <option value="male">Male</option>
+        <option value="female">Female</option>
+        <option value="other">Other</option>
+      </select>
       <input v-model="password" type="password" placeholder="Password" required />
       <input v-model="password_confirmation" type="password" placeholder="Confirm Password" required />
       
@@ -34,6 +40,7 @@ const emit = defineEmits(["navigate"]);
 
 const name = ref("");
 const email = ref("");
+const gender = ref("");
 const password = ref("");
 const password_confirmation = ref("");
 
@@ -43,7 +50,8 @@ const handleRegister = async () => {
       name.value,
       email.value,
       password.value,
-      password_confirmation.value
+      password_confirmation.value,
+      gender.value
     );
   toast.success("Account created successfully! Please log in.");
     emit("navigate", "login"); 
@@ -119,15 +127,20 @@ const registerWithGoogle = () => {
   color: var(--text);
 }
 
-.auth-form input {
+.auth-form input,
+.auth-form select {
   padding: 12px;
   border: 1px solid var(--border, #ddd);
   border-radius: 10px;
   font-size: 0.95rem;
   outline: none;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--panel-solid, #fff);
 }
 
-.auth-form input:focus {
+.auth-form input:focus,
+.auth-form select:focus {
   border-color: var(--brand, #2563eb);
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
 }

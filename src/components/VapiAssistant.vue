@@ -1,7 +1,7 @@
 <template>
   <div class="container">
-    <!-- CALL INTERFACE -->
-    <section v-if="callActive && !showAllMode" class="call-surface">
+    <!-- CALL INTERFACE (also used for pre-call intake chat) -->
+    <section v-if="(callActive || intakeActive) && !showAllMode" class="call-surface">
       <div class="call-layout">
         <div class="call-center">
           <div class="call-top-row">
@@ -58,41 +58,79 @@
 
         <div class="call-sidebar">
           <div class="sidebar-content">
-            <template v-if="latestSummary">
+            <div v-if="currentIntake" class="patient-card">
+              <div class="patient-card-top">
+                <div class="patient-avatar">{{ currentIntake.name?.charAt(0)?.toUpperCase() || "?" }}</div>
+                <div class="patient-id">
+                  <span class="patient-card-label">Name</span>
+                  <span class="patient-name">{{ currentIntake.name }}</span>
+                </div>
+                <span class="patient-active-badge">Active</span>
+              </div>
+
+              <div class="patient-card-grid">
+                <div class="patient-card-cell">
+                  <span class="patient-card-label">Gender</span>
+                  <span class="patient-card-value">{{ currentIntake.gender }}</span>
+                </div>
+                <div class="patient-card-cell">
+                  <span class="patient-card-label">Age</span>
+                  <span class="patient-card-value">{{ currentIntake.age }} Yrs</span>
+                </div>
+              </div>
+
+              <div class="patient-card-section">
+                <span class="patient-card-label"><i class="fas fa-notes-medical"></i> Symptoms</span>
+                <div class="symptom-tags">
+                  <span
+                    v-for="(s, i) in currentIntake.symptoms.split(/,|\n/).map(t => t.trim()).filter(Boolean)"
+                    :key="i"
+                    class="symptom-tag"
+                  >{{ s }}</span>
+                </div>
+              </div>
+
+              <div v-if="recentVisits.length" class="patient-card-section">
+                <span class="patient-card-label"><i class="fas fa-calendar-alt"></i> Visit History</span>
+                <div class="visit-timeline">
+                  <div v-for="v in recentVisits" :key="v.id" class="visit-item">
+                    <div class="visit-dot"></div>
+                    <div class="visit-info">
+                      <span class="visit-date">{{ new Date(v.created_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }) }}</span>
+                      <span class="visit-doctor">{{ v.doctor?.name || v.doctor_name || "Unknown Doctor" }}<template v-if="v.doctor?.specialty"> · {{ v.doctor.specialty }}</template></span>
+                      <span v-if="v.key_symptoms" class="visit-reason">{{ v.key_symptoms }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <template v-else-if="displayableLatestSummary">
               <div class="sidebar-item active">
                 <i class="fas fa-user-md"></i>
                 <span>{{
-                  latestSummary.doctor_name || "Recent Consultation"
+                  displayableLatestSummary.doctor_name || "Recent Consultation"
                 }}</span>
               </div>
 
-              <div class="sidebar-item">
+              <div v-if="displayableLatestSummary.key_symptoms" class="sidebar-item">
                 <i class="fas fa-stethoscope"></i>
-                <span>{{
-                  latestSummary.key_symptoms || "Key symptoms not available"
-                }}</span>
+                <span>{{ displayableLatestSummary.key_symptoms }}</span>
               </div>
 
-              <div class="sidebar-item">
+              <div v-if="displayableLatestSummary.observations" class="sidebar-item">
                 <i class="fas fa-heartbeat"></i>
-                <span>{{
-                  latestSummary.observations || "Observations not available"
-                }}</span>
+                <span>{{ displayableLatestSummary.observations }}</span>
               </div>
 
-              <div class="sidebar-item">
+              <div v-if="displayableLatestSummary.recommendations" class="sidebar-item">
                 <i class="fas fa-vials"></i>
-                <span>{{
-                  latestSummary.recommendations ||
-                  "Recommendations not available"
-                }}</span>
+                <span>{{ displayableLatestSummary.recommendations }}</span>
               </div>
 
-              <div class="sidebar-item">
+              <div v-if="displayableLatestSummary.follow_up" class="sidebar-item">
                 <i class="fas fa-tint"></i>
-                <span>{{
-                  latestSummary.follow_up || "Follow-up not available"
-                }}</span>
+                <span>{{ displayableLatestSummary.follow_up }}</span>
               </div>
             </template>
 
@@ -116,7 +154,7 @@
             </template>
           </div>
 
-          <button class="view-all" @click="showAllSummaries">Show All</button>
+          <button class="view-all" @click="showAllSummaries">Show All Visits</button>
         </div>
       </div>
 
@@ -131,10 +169,12 @@
             v-for="(c, i) in captions"
             :key="c.ts + '-' + i"
             class="bubble"
+            :class="{ 'bubble-intake': c.intake }"
             :data-role="c.role"
           >
             <div class="bubble-meta">
-              {{ c.role === "assistant" ? "Doctor" : "You" }}
+              <i v-if="c.intake && c.role === 'assistant'" class="fas fa-clipboard-list"></i>
+              {{ c.role === "assistant" ? (c.intake ? "Intake" : "Doctor") : "You" }}
             </div>
             <!-- PDF card -->
             <template v-if="c.pdfUrl">
@@ -150,6 +190,13 @@
               </div>
             </template>
             <div v-else class="bubble-text">{{ c.text }}</div>
+          </div>
+
+          <div v-if="connectingCall" class="bubble" data-role="assistant">
+            <div class="bubble-meta">Doctor</div>
+            <div class="typing-indicator">
+              <span></span><span></span><span></span>
+            </div>
           </div>
 
           <div class="upload-row">
@@ -169,12 +216,21 @@
           </div>
         </div>
 
-        <form class="chat-composer" @submit.prevent="sendChat">
+        <form v-if="intakeActive && intakeStep === 2" class="chat-composer" @submit.prevent>
+          <select v-model="chatText" class="gender-select" @change="sendChat">
+            <option value="" disabled>Select gender…</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+            <option value="other">Other</option>
+          </select>
+        </form>
+
+        <form v-else class="chat-composer" @submit.prevent="sendChat">
           <input
             type="text"
             v-model="chatText"
-            placeholder="Type a message to the doctor…"
-            :disabled="!callActive || sending"
+            :placeholder="intakeActive ? intakePlaceholder : 'Type a message to the doctor…'"
+            :disabled="(!callActive && !intakeActive) || sending"
           />
           <button class="btn send-btn" :disabled="!chatText.trim() || sending">
             <i class="fas fa-paper-plane"></i>
@@ -275,7 +331,7 @@
           <footer class="doctor-actions">
             <button
               class="btn btn--call"
-              @click="startCall(doctor)"
+              @click="requestStartCall(doctor)"
               :disabled="callActive && activeDoctorId === doctor.id"
             >
               <i class="fas fa-phone"></i>
@@ -536,6 +592,83 @@ const BACKEND_API_KEY = import.meta.env.VITE_API_BASE_URL;
 
 const callActive = ref(false);
 const activeDoctorId = ref(null);
+
+// Pre-call intake — asked one at a time inside the chat, before the real call connects
+const intakeActive = ref(false);
+const connectingCall = ref(false);
+const pendingDoctor = ref(null);
+const intakeStep = ref(0); // 1=name, 2=gender, 3=age, 4=symptoms
+const intakeAnswers = ref({ name: "", gender: "", age: "", symptoms: "" });
+const currentIntake = ref(null);
+
+const INTAKE_QUESTIONS = [
+  { key: "name", question: "Before we connect you, what's your name?", placeholder: "Type your name…" },
+  { key: "gender", question: "Thanks! What's your gender? (male / female / other)", placeholder: "male, female, or other…" },
+  { key: "age", question: "Got it. How old are you?", placeholder: "Type your age…" },
+  { key: "symptoms", question: "And finally, what symptoms are you experiencing?", placeholder: "Describe your symptoms…" },
+];
+
+const intakePlaceholder = computed(() => {
+  const q = INTAKE_QUESTIONS[intakeStep.value - 1];
+  return q ? q.placeholder : "Type a message…";
+});
+
+function requestStartCall(doctor) {
+  if (!doctor || !doctor.assistantId) {
+    status.value = "No doctor selected or missing assistantId.";
+    return;
+  }
+  pendingDoctor.value = doctor;
+  intakeAnswers.value = { name: "", gender: "", age: "", symptoms: "" };
+  intakeStep.value = 1;
+  intakeActive.value = true;
+  activeDoctorId.value = doctor.id;
+  captions.value = [];
+  chatText.value = "";
+
+  addCaption("assistant", INTAKE_QUESTIONS[0].question, true, { intake: true });
+}
+
+function handleIntakeAnswer(text) {
+  const step = intakeStep.value;
+  const field = INTAKE_QUESTIONS[step - 1]?.key;
+  if (!field) return;
+
+  if (field === "gender") {
+    const normalized = text.trim().toLowerCase();
+    if (!["male", "female", "other"].includes(normalized)) {
+      addCaption("assistant", "Please answer with male, female, or other.", true, { intake: true });
+      return;
+    }
+    intakeAnswers.value.gender = normalized;
+  } else if (field === "age") {
+    const age = parseInt(text.trim(), 10);
+    if (isNaN(age) || age <= 0 || age > 120) {
+      addCaption("assistant", "Please enter a valid age.", true, { intake: true });
+      return;
+    }
+    intakeAnswers.value.age = String(age);
+  } else {
+    intakeAnswers.value[field] = text.trim();
+  }
+
+  if (step < INTAKE_QUESTIONS.length) {
+    intakeStep.value = step + 1;
+    addCaption("assistant", INTAKE_QUESTIONS[step].question, true, { intake: true });
+  } else {
+    const doctor = pendingDoctor.value;
+    const intake = { ...intakeAnswers.value };
+    intakeStep.value = 0;
+    currentIntake.value = intake;
+    connectingCall.value = true;
+    startCall(doctor, intake).finally(() => {
+      intakeActive.value = false;
+      pendingDoctor.value = null;
+      connectingCall.value = false;
+    });
+  }
+}
+
 const status = ref("");
 const statusLoading = ref(false);
 const callTimer = ref("00:00");
@@ -631,6 +764,14 @@ async function saveSummary(doctorId, summaryText) {
 
 const latestSummary = ref(null);
 
+const displayableLatestSummary = computed(() => {
+  const s = latestSummary.value;
+  if (!s) return null;
+  const hasDetail = [s.key_symptoms, s.observations, s.recommendations, s.follow_up]
+    .some((v) => v && String(v).trim());
+  return hasDetail ? s : null;
+});
+
 async function fetchLatestSummary() {
   const token = localStorage.getItem("token");
   try {
@@ -646,9 +787,32 @@ async function fetchLatestSummary() {
   }
 }
 
+async function fetchAllSummaries() {
+  const token = localStorage.getItem("token");
+  try {
+    const { data } = await axios.get(`${BACKEND_API_KEY}/summaries`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    allSummaries.value = data || [];
+  } catch (err) {
+    console.error("❌ Failed to fetch all summaries:", err.response?.data || err);
+  }
+}
+
+const recentVisits = computed(() => allSummaries.value.slice(0, 3));
+
 async function sendChat() {
   const text = chatText.value.trim();
-  if (!text || !callActive.value) return;
+  if (!text) return;
+
+  if (intakeActive.value) {
+    addCaption("user", text, true, { intake: true });
+    chatText.value = "";
+    handleIntakeAnswer(text);
+    return;
+  }
+
+  if (!callActive.value) return;
 
   addCaption("user", text, true);
   finalTranscript.value.push({ role: "user", text });
@@ -700,7 +864,7 @@ function normalizeContent(content) {
   return "";
 }
 
-function addCaption(role, text, final = false) {
+function addCaption(role, text, final = false, opts = {}) {
   if (!text || !text.trim()) return;
   const key = role === "assistant" ? "assistant" : "user";
   const idx = activeBubbleIdx.value[key];
@@ -715,6 +879,7 @@ function addCaption(role, text, final = false) {
         text,
         ts: Date.now(),
         final,
+        intake: !!opts.intake,
       }) - 1;
     if (!final) activeBubbleIdx.value[key] = newIdx;
   }
@@ -745,7 +910,7 @@ function setAssistantMuted(flag) {
   }
 }
 
-const startCall = async (doctor) => {
+const startCall = async (doctor, intake = null) => {
   if (!doctor || !doctor.assistantId) {
     status.value = "No doctor selected or missing assistantId.";
     return;
@@ -757,7 +922,7 @@ const startCall = async (doctor) => {
   activeDoctorId.value = doctor.id;
   status.value = `Connecting to ${doctor.name}...`;
   statusLoading.value = true;
-  captions.value = [];
+  if (!intake) captions.value = [];
 
   canSendControls.value = false;
   controlQueue.length = 0;
@@ -769,6 +934,14 @@ const startCall = async (doctor) => {
       clientMessages: [
         "transcript",
       ],
+      variableValues: intake
+        ? {
+            patientName: intake.name,
+            patientGender: intake.gender,
+            patientAge: intake.age,
+            initialSymptoms: intake.symptoms,
+          }
+        : undefined,
     });
 
     callActive.value = true;
@@ -783,6 +956,9 @@ const startCall = async (doctor) => {
 
 const handleCallEnd = () => {
   callActive.value = false
+  intakeActive.value = false
+  intakeStep.value = 0
+  pendingDoctor.value = null
   showAllMode.value = false
   clearInterval(timerInterval)
   isMuted.value = false
@@ -815,9 +991,10 @@ const stopCall = () => {
     .map((m) => `${m.role}: ${m.text}`)
     .join("\n");
   if (activeDoctorId.value && transcript) {
-    saveSummary(activeDoctorId.value, transcript).then(() =>
-      fetchLatestSummary(),
-    );
+    saveSummary(activeDoctorId.value, transcript).then(() => {
+      fetchLatestSummary();
+      fetchAllSummaries();
+    });
   }
 };
 
@@ -1379,6 +1556,7 @@ onMounted(() => {
   setTimeout(() => (status.value = ""), 5000);
 
   fetchLatestSummary();
+  fetchAllSummaries();
 
   // Check for auto-start intent from ChatBot
   const autoStartDoctorId = localStorage.getItem("autoStartDoctor");
@@ -1394,8 +1572,8 @@ onMounted(() => {
       // Ensure Vapi is ready before starting the call
       // The `canSendControls.value` becoming true indicates Vapi is ready to interact.
       // We can wait for it or rely on the existing `flushControls` logic if `startCall` is called early.
-      // For now, we'll just call `startCall` directly, assuming Vapi will handle queuing if not ready.
-      startCall(targetDoctor);
+      // For now, we'll just call `requestStartCall` directly, assuming Vapi will handle queuing if not ready.
+      requestStartCall(targetDoctor);
     } else {
       console.warn("Could not find doctor with ID:", autoStartDoctorId);
     }
@@ -1423,7 +1601,7 @@ html {
 .container {
   max-width: 1450px;
   margin: 0px auto 24px;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .call-surface {
@@ -1444,7 +1622,7 @@ html {
   flex-direction: column;
   justify-content: flex-start;
   color: #fff;
-  height: 670px;
+  height: 480px;
 }
 
 .call-layout {
@@ -1462,7 +1640,7 @@ html {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  height: 670px;
+  height: 480px;
   overflow: hidden;
   position: relative;
 }
@@ -1482,31 +1660,183 @@ html {
 }
 .call-sidebar .sidebar-item {
   display: flex;
-  align-items: center;
-  gap: 20px;
-  padding: 15px 14px;
-  font-size: 13px;
-  font-style: italic;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 13px 14px;
+  font-size: 12.5px;
+  line-height: 1.4;
   color: #333;
   border-bottom: 1px solid #eee;
   cursor: pointer;
-  flex-direction: column;
+  text-align: left;
   transition: background 0.2s;
-  text-align: center;
 }
 
 .call-sidebar .sidebar-item i {
   color: #2a66b2;
   font-size: 14px;
+  margin-top: 1px;
+  flex-shrink: 0;
+  width: 16px;
+  text-align: center;
 }
 
 .call-sidebar .sidebar-item:hover {
   background: #f5f7fb;
 }
 
-.call-sidebar .active {
+.call-sidebar .sidebar-item.active {
   background: #2a66b2;
   color: #fff;
+}
+.call-sidebar .sidebar-item.active i {
+  color: #fff;
+}
+
+/* ── Patient intake card ── */
+.patient-card {
+  border-bottom: 1px solid #eee;
+  padding: 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.patient-card-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.patient-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #eef2ff;
+  color: #2a66b2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+.patient-id {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.patient-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #111827;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.patient-active-badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #16a34a;
+  background: #dcfce7;
+  padding: 3px 10px;
+  border-radius: 20px;
+  flex-shrink: 0;
+}
+.patient-card-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #8a94a6;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.patient-card-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.patient-card-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.patient-card-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+  text-transform: capitalize;
+}
+.patient-card-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.symptom-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.symptom-tag {
+  font-size: 12px;
+  font-weight: 600;
+  color: #2a66b2;
+  background: #eaf1fb;
+  border: 1px solid #d3e2f7;
+  padding: 4px 12px;
+  border-radius: 20px;
+}
+
+/* Visit history timeline */
+.visit-timeline {
+  display: flex;
+  flex-direction: column;
+}
+.visit-item {
+  display: flex;
+  gap: 10px;
+  padding-bottom: 12px;
+  position: relative;
+}
+.visit-item:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 12px;
+  bottom: 0;
+  width: 1px;
+  background: #e5e7eb;
+}
+.visit-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #2a66b2;
+  margin-top: 4px;
+  flex-shrink: 0;
+  z-index: 1;
+}
+.visit-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.visit-date {
+  font-size: 10.5px;
+  color: #8a94a6;
+  font-weight: 600;
+}
+.visit-doctor {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #111827;
+}
+.visit-reason {
+  font-size: 11.5px;
+  color: #8a94a6;
 }
 
 .call-sidebar .active i {
@@ -1639,17 +1969,30 @@ html {
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
   padding: 16px;
   width: 100%;
-  margin-top: 20px;
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  height: 280px;
 }
 
 .bubble-list {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: 8px;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  max-height: 360px;
+  scrollbar-width: thin;
+  scrollbar-color: #ccc transparent;
+}
+
+.bubble-list::-webkit-scrollbar {
+  width: 6px;
+}
+.bubble-list::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 4px;
 }
 
 .bubble {
@@ -1676,6 +2019,45 @@ html {
   font-size: 0.75rem;
   opacity: 0.65;
   margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Pre-call intake Q&A — visually distinct from the doctor chat */
+.bubble.bubble-intake[data-role="assistant"] {
+  background: #fff7e6;
+  border: 1px dashed #f0c674;
+  color: #7a5b12;
+}
+.bubble.bubble-intake[data-role="assistant"] .bubble-meta {
+  color: #b8860b;
+  opacity: 0.85;
+}
+.bubble.bubble-intake[data-role="user"] {
+  background: #4a5a75;
+}
+
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 2px;
+}
+.typing-indicator span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #6b8fc7;
+  opacity: 0.4;
+  animation: typing-bounce 1.2s infinite ease-in-out;
+}
+.typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+.typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typing-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-4px); opacity: 1; }
 }
 
 .upload-row {
@@ -1758,6 +2140,7 @@ html {
   gap: 8px;
   border-top: 1px solid #eee;
   padding-top: 10px;
+  flex-shrink: 0;
 }
 
 .chat-composer input {
@@ -1765,6 +2148,18 @@ html {
   padding: 10px;
   border: 1px solid #ddd;
   border-radius: 8px;
+}
+
+.gender-select {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  color: #111827;
+  background: #fff;
+  cursor: pointer;
 }
 
 .send-btn {
@@ -2214,10 +2609,7 @@ html {
   .chat-wrap {
     margin-top: 12px;
     padding: 12px;
-  }
-
-  .bubble-list {
-    max-height: 220px;
+    height: 320px;
   }
 
   .all-summaries-section {
@@ -2268,4 +2660,5 @@ html {
     gap: 10px;
   }
 }
+
 </style>

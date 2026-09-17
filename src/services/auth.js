@@ -1,11 +1,12 @@
 import api from "../api";
 
-export async function register(name, email, password, password_confirmation) {
+export async function register(name, email, password, password_confirmation, gender) {
   const res = await api.post("/register", {
     name,
     email,
     password,
     password_confirmation,
+    gender,
   });
   localStorage.setItem("token", res.data.token);
   return res.data.user;
