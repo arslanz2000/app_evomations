@@ -10,8 +10,8 @@
       </div>
       <div class="history-actions">
         <div v-if="!loading && summaries.length" class="history-count">
-          <strong>{{ summaries.length }}</strong>
-          <span>{{ summaries.length === 1 ? "Consultation" : "Consultations" }}</span>
+          <strong>{{ doctorGroups.length }}</strong>
+          <span>{{ doctorGroups.length === 1 ? "Doctor" : "Doctors" }}</span>
         </div>
         <button
           v-if="!loading && summaries.length"
@@ -29,62 +29,106 @@
       <p>Loading your history…</p>
     </div>
 
-    <div v-else-if="summaries.length" class="history-grid">
-      <article v-for="summary in summaries" :key="summary.id" class="history-card">
+    <!-- DOCTOR CARDS (one per doctor) -->
+    <div v-else-if="!activeGroup && summaries.length" class="history-grid">
+      <article
+        v-for="group in doctorGroups"
+        :key="group.key"
+        class="history-card doctor-group-card"
+        :class="{ 'is-last-talked': lastTalkedTo && group.key === lastTalkedTo.key }"
+        @click="activeGroup = group"
+      >
         <div class="card-top">
           <div class="doctor-avatar"><i class="fas fa-user-md"></i></div>
           <div class="doctor-id">
-            <h3>{{ summary.doctor?.name || summary.doctor_name || "Unknown Doctor" }}</h3>
-            <span v-if="summary.doctor?.specialty" class="specialty">{{ summary.doctor.specialty }}</span>
+            <span v-if="lastTalkedTo && group.key === lastTalkedTo.key" class="last-talked-badge">
+              <i class="fas fa-comment-dots"></i> Last talked to
+            </span>
+            <h3>{{ group.name }}</h3>
+            <span v-if="group.specialty" class="specialty">{{ group.specialty }}</span>
           </div>
           <span class="date-pill">
             <i class="fas fa-calendar-alt"></i>
-            {{ formatDate(summary.created_at) }}
+            {{ formatDate(group.latestDate) }}
           </span>
         </div>
 
-        <div class="card-body">
-          <div class="field-row">
-            <div class="field-icon symptoms"><i class="fas fa-stethoscope"></i></div>
-            <div class="field-text">
-              <span class="field-label">Key Symptoms</span>
-              <span class="field-value" :class="{ empty: !summary.key_symptoms }">
-                {{ summary.key_symptoms || "Not recorded" }}
-              </span>
-            </div>
-          </div>
-
-          <div class="field-row">
-            <div class="field-icon observations"><i class="fas fa-eye"></i></div>
-            <div class="field-text">
-              <span class="field-label">Observations</span>
-              <span class="field-value" :class="{ empty: !summary.observations }">
-                {{ summary.observations || "Not recorded" }}
-              </span>
-            </div>
-          </div>
-
-          <div class="field-row">
-            <div class="field-icon recommendations"><i class="fas fa-vials"></i></div>
-            <div class="field-text">
-              <span class="field-label">Recommendations</span>
-              <span class="field-value" :class="{ empty: !summary.recommendations }">
-                {{ summary.recommendations || "Not recorded" }}
-              </span>
-            </div>
-          </div>
-
-          <div class="field-row">
-            <div class="field-icon followup"><i class="fas fa-calendar-check"></i></div>
-            <div class="field-text">
-              <span class="field-label">Follow-up</span>
-              <span class="field-value" :class="{ empty: !summary.follow_up }">
-                {{ summary.follow_up || "Not recorded" }}
-              </span>
-            </div>
-          </div>
+        <div class="card-footer">
+          <span class="visit-count-badge">
+            <i class="fas fa-notes-medical"></i>
+            {{ group.visits.length }} {{ group.visits.length === 1 ? "Appointment" : "Appointments" }}
+          </span>
+          <span class="view-link">View all <i class="fas fa-chevron-right"></i></span>
         </div>
       </article>
+    </div>
+
+    <!-- APPOINTMENTS FOR A SELECTED DOCTOR -->
+    <div v-else-if="activeGroup" class="appointments-view">
+      <button type="button" class="back-link" @click="activeGroup = null">
+        <i class="fas fa-arrow-left"></i> Back to doctors
+      </button>
+
+      <div class="appointments-doctor-header">
+        <div class="doctor-avatar large"><i class="fas fa-user-md"></i></div>
+        <div class="doctor-id">
+          <h3>{{ activeGroup.name }}</h3>
+          <span v-if="activeGroup.specialty" class="specialty">{{ activeGroup.specialty }}</span>
+        </div>
+      </div>
+
+      <div class="history-grid">
+        <article v-for="summary in activeGroup.visits" :key="summary.id" class="history-card">
+          <div class="card-top">
+            <span class="date-pill">
+              <i class="fas fa-calendar-alt"></i>
+              {{ formatDate(summary.created_at) }}
+            </span>
+          </div>
+
+          <div class="card-body">
+            <div class="field-row">
+              <div class="field-icon symptoms"><i class="fas fa-stethoscope"></i></div>
+              <div class="field-text">
+                <span class="field-label">Key Symptoms</span>
+                <span class="field-value" :class="{ empty: !summary.key_symptoms }">
+                  {{ summary.key_symptoms || "Not recorded" }}
+                </span>
+              </div>
+            </div>
+
+            <div class="field-row">
+              <div class="field-icon observations"><i class="fas fa-eye"></i></div>
+              <div class="field-text">
+                <span class="field-label">Observations</span>
+                <span class="field-value" :class="{ empty: !summary.observations }">
+                  {{ summary.observations || "Not recorded" }}
+                </span>
+              </div>
+            </div>
+
+            <div class="field-row">
+              <div class="field-icon recommendations"><i class="fas fa-vials"></i></div>
+              <div class="field-text">
+                <span class="field-label">Recommendations</span>
+                <span class="field-value" :class="{ empty: !summary.recommendations }">
+                  {{ summary.recommendations || "Not recorded" }}
+                </span>
+              </div>
+            </div>
+
+            <div class="field-row">
+              <div class="field-icon followup"><i class="fas fa-calendar-check"></i></div>
+              <div class="field-text">
+                <span class="field-label">Follow-up</span>
+                <span class="field-value" :class="{ empty: !summary.follow_up }">
+                  {{ summary.follow_up || "Not recorded" }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
     </div>
 
     <div v-else class="state-card empty-state">
@@ -114,7 +158,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import axios from "axios";
 
 const BACKEND_API_KEY = import.meta.env.VITE_API_BASE_URL || "https://dashboard.evomations.com/api";
@@ -123,6 +167,33 @@ const summaries = ref([]);
 const loading = ref(true);
 const showResetConfirm = ref(false);
 const resetting = ref(false);
+const activeGroup = ref(null);
+
+const doctorGroups = computed(() => {
+  const map = new Map();
+  for (const summary of summaries.value) {
+    const key = summary.doctor_id ?? summary.doctor?.id ?? summary.doctor_name ?? "unknown";
+    if (!map.has(key)) {
+      map.set(key, {
+        key,
+        name: summary.doctor?.name || summary.doctor_name || "Unknown Doctor",
+        specialty: summary.doctor?.specialty || "",
+        visits: [],
+        latestDate: summary.created_at,
+      });
+    }
+    const group = map.get(key);
+    group.visits.push(summary);
+    if (new Date(summary.created_at) > new Date(group.latestDate)) {
+      group.latestDate = summary.created_at;
+    }
+  }
+  return Array.from(map.values()).sort(
+    (a, b) => new Date(b.latestDate) - new Date(a.latestDate)
+  );
+});
+
+const lastTalkedTo = computed(() => doctorGroups.value[0] || null);
 
 function formatDate(value) {
   return new Date(value).toLocaleDateString(undefined, {
@@ -130,6 +201,18 @@ function formatDate(value) {
     day: "2-digit",
     year: "numeric",
   });
+}
+
+function timeAgo(value) {
+  const seconds = Math.floor((Date.now() - new Date(value).getTime()) / 1000);
+  if (seconds < 60) return "Just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return formatDate(value);
 }
 
 async function fetchHistory() {
@@ -155,6 +238,7 @@ async function resetHistory() {
       headers: { Authorization: `Bearer ${token}` },
     });
     summaries.value = [];
+    activeGroup.value = null;
     showResetConfirm.value = false;
   } catch (err) {
     console.error("❌ Failed to clear history:", err.response?.data || err);
@@ -169,6 +253,25 @@ onMounted(fetchHistory);
 <style scoped>
 .history-section {
   padding: 8px 4px 32px;
+}
+
+.is-last-talked {
+  border-color: color-mix(in srgb, var(--brand) 45%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand) 18%, transparent), var(--shadow-1);
+}
+
+.last-talked-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: fit-content;
+  font-size: 0.64rem;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand), var(--brand-2));
+  padding: 2px 9px;
+  border-radius: 20px;
+  margin-bottom: 4px;
 }
 
 .history-header {
@@ -355,8 +458,9 @@ onMounted(fetchHistory);
 
 .history-grid {
   display: grid;
-  gap: 20px;
+  gap: 20px 20px;
   grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  margin-top: 6px;
 }
 
 .history-card {
@@ -377,11 +481,19 @@ onMounted(fetchHistory);
 
 .card-top {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
   padding: 16px 18px;
   background: color-mix(in srgb, var(--brand) 7%, transparent);
   border-bottom: 1px solid var(--ring);
+}
+
+.card-top .doctor-avatar {
+  margin-top: 2px;
+}
+
+.card-top .date-pill {
+  margin-top: 2px;
 }
 
 .doctor-avatar {
@@ -395,6 +507,85 @@ onMounted(fetchHistory);
   background: linear-gradient(135deg, var(--brand), var(--brand-2));
   color: #fff;
   font-size: 1rem;
+}
+
+.doctor-avatar.large {
+  width: 52px;
+  height: 52px;
+  font-size: 1.3rem;
+}
+
+.doctor-group-card {
+  cursor: pointer;
+}
+
+.card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  gap: 10px;
+}
+
+.visit-count-badge {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--brand);
+}
+
+.view-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.doctor-group-card:hover .view-link {
+  color: var(--brand);
+}
+
+.appointments-view {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.back-link:hover {
+  color: var(--brand);
+}
+
+.appointments-doctor-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px;
+  background: var(--panel-solid);
+  border: 1px solid var(--ring);
+  border-radius: 16px;
+  box-shadow: var(--shadow-1);
+}
+
+.appointments-doctor-header .doctor-id h3 {
+  font-size: 1.1rem;
 }
 
 .doctor-id {
