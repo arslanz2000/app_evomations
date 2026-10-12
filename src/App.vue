@@ -161,6 +161,21 @@
           </Suspense>
         </section>
 
+        <!-- HISTORY VIEW -->
+        <section v-else-if="currentView === 'history'" class="doctors">
+          <Suspense>
+            <template #default>
+              <HistoryView />
+            </template>
+            <template #fallback>
+              <div class="loading-card">
+                <div class="spinner"></div>
+                Loading History…
+              </div>
+            </template>
+          </Suspense>
+        </section>
+
         <!-- SIGNUP VIEW -->
         <section v-else-if="currentView === 'signup'" class="auth">
           <SignupForm @navigate="setView" />
@@ -223,6 +238,7 @@ const VapiAssistant = defineAsyncComponent(() => import('./components/VapiAssist
 const VapiChatBot  = defineAsyncComponent(() => import('./components/VapiChatBot.vue'))    // chatbots grid + chat
 const XrayMriChat   = defineAsyncComponent(() => import('./components/XrayMriChat.vue'))
 const SkinAnalysis  = defineAsyncComponent(() => import('./components/SkinAnalysis.vue'))
+const HistoryView   = defineAsyncComponent(() => import('./components/HistoryView.vue'))
 
 // Nav + view state
 const sidebarOpen = ref(true)
@@ -246,6 +262,7 @@ const pageTitle = computed(() => {
     case 'chatbots': return 'AI Chatbots'
     case 'xrays':    return 'Radiology Assistant'
     case 'skin':     return 'Skin Analysis'
+    case 'history':  return 'Consultation History'
     default:         return 'Dashboard'
   }
 })

@@ -78,6 +78,18 @@
         <span>Skin Analysis</span>
       </button>
 
+      <!-- History -->
+      <button
+        type="button"
+        class="nav-btn"
+        :class="{ active: currentView === 'history' }"
+        :aria-current="currentView === 'history' ? 'page' : undefined"
+        @click="emit('navigate', 'history')"
+      >
+        <i class="fas fa-history" aria-hidden="true"></i>
+        <span>History</span>
+      </button>
+
       <p class="nav-label">Shortcuts</p>
       <button type="button" class="nav-btn" @click="navigateToConsultant()">
         <i class="fas fa-stethoscope" aria-hidden="true"></i>
@@ -101,7 +113,7 @@
 <script setup lang="ts">
 import { ref, computed, defineAsyncComponent, watch, onMounted } from 'vue'
 const emit = defineEmits<{
-  (e:'navigate', v:'home'|'doctors'|'chatbots'|'xrays'|'skin'): void;
+  (e:'navigate', v:'home'|'doctors'|'chatbots'|'xrays'|'skin'|'history'): void;
   (e:'toggleSidebar'): void;
 }>()
 
@@ -110,7 +122,7 @@ const navigateToConsultant = () => {
 };
 
 const props = defineProps<{
-  currentView?: 'home' | 'doctors' | 'chatbots' | 'xrays' | 'skin'
+  currentView?: 'home' | 'doctors' | 'chatbots' | 'xrays' | 'skin' | 'history'
   open?: boolean
   countDoctors?: number
   /** optional chip for the new X-rays & MRI item */
